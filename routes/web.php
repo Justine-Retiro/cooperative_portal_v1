@@ -15,6 +15,7 @@ use App\Http\Controllers\Member\LoanController;
 use App\Http\Controllers\Member\ProfileController;
 use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
+use App\Http\Controllers\Admin\ExportController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -94,6 +95,19 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth', 'adminUser']], funct
         // Repository search
         Route::get('/repositories/search', [RepositoriesController::class, 'search'])->name('admin.search-repo');
 
+        // Pending
+
+
+
+
+        // Export salesforce
+        Route::get('/export', [ExportController::class, 'index'])->name('admin.export');
+        Route::post('/export', [ExportController::class, 'export'])->name('admin.export');
+        Route::post('/export-update', [ExportController::class, 'updateRowPosition'])->name('admin.update-row-position');
+        Route::post('/fetch-filtered-data', [ExportController::class, 'fetchFilteredData'])->name('admin.fetchFilteredData');
+        Route::post('/admin/fetch-filtered-data-quick-export', [ExportController::class, 'fetchFilteredDataForQuickExport'])->name('admin.fetch-filtered-data-for-quick-export');
+        
+        
         // Memeber's Loan
         Route::get('/loan', [LoanProcessing::class, 'index'])->name('admin.loan.home');
         Route::get('/loan/application/{loanReference}', [LoanProcessing::class, 'application'])->name('admin.loan.application');

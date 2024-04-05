@@ -12,7 +12,7 @@
                 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item"><a href="{{ route('admin.repositories') }}" class="text-decoration-none">Repositories</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Add member</li>
+                    <li class="breadcrumb-item active" aria-current="page">Edit member</li>
                 </ol>
                 </nav>
                 <div class="row mt-1">

@@ -102,6 +102,60 @@ td a{
 .bi-arrow-down-up{
     font-size: 15px;
 }
+
+.table-wrapper {
+
+    overflow-y: scroll;
+    overflow-x: scroll;
+    height: fit-content;
+    max-height: 400px;
+    
+    margin-top: 22px;
+    
+    margin: 15px;
+    padding-bottom: 20px;
+    
+  }
+  
+  
+  table {
+    
+    min-width: max-content;
+    
+    border-collapse: separate;
+    border-spacing: 0px;    
+    
+  }
+  
+  
+  
+  table th{
+    position: sticky; 
+    top: 0px;
+    font-size: 18px;
+    /* outline: 0.7px solid black;
+    border: 1.5px solid black; */
+  
+  } 
+  
+  
+  
+  table th, table td {
+    
+    padding: 15px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    
+  }
+  
+  table td {
+    text-align: left;
+    font-size: 18px;
+    padding-left: 20px;
+    
+  }
+
+
 /* 
 #top-table{
     height: 20vh;

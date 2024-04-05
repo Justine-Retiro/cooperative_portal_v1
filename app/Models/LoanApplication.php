@@ -96,26 +96,32 @@ class LoanApplication extends Model implements HasMedia
 
     public function getApplicantSignAttribute()
     {
-        $file = $this->getMedia('applicant_sign')->last();
-        if ($file) {
-            $file->url       = $file->getUrl();
-            $file->thumbnail = $file->getUrl('thumb');
-            $file->preview   = $file->getUrl('preview');
-        }
+        if (!in_array('applicant_sign', $this->hidden)) {
+            $file = $this->getMedia('applicant_sign')->last();
+            if ($file) {
+                $file->url       = $file->getUrl();
+                $file->thumbnail = $file->getUrl('thumb');
+                $file->preview   = $file->getUrl('preview');
+            }
 
-        return $file;
+            return $file;
+        }
+        return null;
     }
 
     public function getApplicantReceiptAttribute()
     {
-        $file = $this->getMedia('applicant_receipt')->last();
-        if ($file) {
-            $file->url       = $file->getUrl();
-            $file->thumbnail = $file->getUrl('thumb');
-            $file->preview   = $file->getUrl('preview');
-        }
+        if (!in_array('applicant_receipt', $this->hidden)) {
+            $file = $this->getMedia('applicant_receipt')->last();
+            if ($file) {
+                $file->url       = $file->getUrl();
+                $file->thumbnail = $file->getUrl('thumb');
+                $file->preview   = $file->getUrl('preview');
+            }
 
-        return $file;
+            return $file;
+        }
+        return null;
     }
 
     public function take_action_by()

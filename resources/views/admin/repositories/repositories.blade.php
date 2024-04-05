@@ -18,9 +18,15 @@
                 <div class="row mb-3">
                   <div class="col-lg-11">
                     <div class="col-lg-8 col-md-8 col-sm-8 d-flex flex-column flex-lg-row">
-                      <a href="{{ route('admin.add-repo') }}" class="d-flex align-items-center me-3 ">
-                        <button class="btn btn-primary" id="add-mem"><i class="bi bi-plus-lg text-light"></i> &nbsp;Add member</button>
-                      </a>
+                      <div class="btn-group" role="group">
+                        <a href="{{ route('admin.add-repo') }}" class="d-flex align-items-center me-3 ">
+                          <button class="btn btn-primary" id="add-mem"><i class="bi bi-plus-lg text-light"></i> &nbsp;Add member</button>
+                        </a>
+                        <a href="{{ route('admin.add-repo') }}" class="d-flex text-decoration-none align-items-center me-3 ">
+                          <button class="btn btn-outline-primary" id="add-mem"><small>21</small> &nbsp;Request New Members</button>
+                        </a>
+                      </div>
+                      
                       <span class="ps-3 border-start border-md-start-0"></span>
                       <div class="">
                         <form action="{{ route('admin.search-repo') }}" method="GET">

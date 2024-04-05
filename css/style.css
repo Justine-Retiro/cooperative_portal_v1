@@ -77,6 +77,25 @@
 
 }
 
+
+.visually-hidden {
+   visibility: hidden;
+   position: absolute;
+   width: 1px;
+   height: 1px;
+   margin: -1px;
+   overflow: hidden;
+   clip: rect(0,0,0,0);
+}
+.hidden-content {
+   visibility: hidden;
+   height: 0;
+   overflow: hidden;
+}
+.visibility-hidden {
+   visibility: hidden;
+}
+
 .sidebar-nav li a {
 font-weight: 300;
    display: block;
@@ -130,6 +149,30 @@ color: #FEFEFE !important;
 .hide-text {
 display: none;
 }
+
+#fieldsTable {
+   table-layout: fixed;
+   width: 100%; /* Ensure the table stretches to the container width */
+}
+
+#fieldsTable th:first-child, #fieldsTable td:first-child {
+   width: 30px; /* Match the header width */
+   visibility: hidden; /* Hide the drag handle column */
+}
+#fieldsTable td {
+    min-height: 50px; /* Or any other height that suits your design */
+    vertical-align: middle; /* This ensures the content is vertically centered */
+}
+
+.drag-handle {
+   position: absolute;
+   left: 5px; /* Adjust this value so the handle appears outside the table */
+   top: 50%;
+   border-bottom:0px;
+   text-align: center;
+   transform: translateY(-50%); /* Center vertically */
+}
+
  /* Toggle Sidebar */
  #sidebar-wrapper.toggled .sidebar-nav {
    display: flex;

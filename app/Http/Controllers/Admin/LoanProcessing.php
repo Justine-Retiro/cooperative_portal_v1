@@ -42,23 +42,27 @@ class LoanProcessing extends Controller
                 $query->where('book_keeper', true)
                     ->where('general_manager', true);
             })->get();
-            $loanApplications = LoanApplication::whereHas('approvals', function ($query) {
-                $query->where('book_keeper', false)->where('general_manager', false);
-            })->where('application_status', '!=', 'reject')->get();
+            $overAllRejectedloanApplications = LoanApplication::whereHas('approvals', function ($query) {
+                $query->where('book_keeper', true)
+                    ->where('general_manager', '!=', true);
+            })->get();
             
+            $pendingApplicationsQuery = LoanApplication::whereHas('approvals', function ($query) {
+                $query->where('book_keeper', false)->where('general_manager', false);
+            })->where('application_status', 'pending');
+            $loanApplications = LoanApplication::whereHas('approvals', function ($query) {
+                $query->where('book_keeper', true);
+            })->where('application_status', '!=', 'reject')->get();
             // Calculate counts
-            $pendingCount = $loanApplications->where('application_status', 'pending')->count();
-            $allCount = $overAllloanApplications->count() + $pendingCount;
-            $approvedCount = $overAllloanApplications->where('application_status', 'approved')->count();
-            $rejectedCount = $overAllloanApplications->where('application_status', 'rejected')->count();
+            $allCount = $loanApplications->count();
+            $pendingCount = $pendingApplicationsQuery->count();
+            $approvedCount = $loanApplications->where('application_status', 'approved')->count();
+            $rejectedCount = $loanApplications->where('application_status', 'rejected')->count();
         } else {
-            // For other users
             $loanApplications = LoanApplication::where('application_status', 'pending')->get();
     
-            // Since other users only see pending applications, set counts accordingly
             $allCount = $loanApplications->count();
             $pendingCount = $allCount;
-            // Approved and rejected counts will remain 0 for users who can only see pending applications
         }
     
         return view('admin.loans.loan', compact('loanApplications', 'allCount', 'pendingCount', 'approvedCount', 'rejectedCount'));
@@ -70,69 +74,128 @@ class LoanProcessing extends Controller
         $query = LoanApplication::query();
         $searchQuery = $request->query('search', '');
         $sort = $request->query('sort', 'desc'); // Capture the sort option
-        
+        $countQuery = clone $query;
+
         // Apply initial permission and status filters
         if ($user->hasPermission(1)) {
             $query->whereHas('approvals', function ($query) use ($status) {
                 $query->where('book_keeper', true);
             });
+            $countQuery = clone $query; // Clone after applying filters for accurate counts
+
             if ($status !== 'all') {
                 $query->where('application_status', $status);
+                $countQuery->where('application_status', $status);
             } else {
                 $query->where('application_status', '!=', 'reject');
+                $countQuery->where('application_status', '!=', 'reject');
             }
         } elseif ($user->hasPermission(3)) {
-            // $query->whereHas('approvals', function ($query) use ($status) {
-            //     $query->where('book_keeper', true);
-            // });
             if ($status !== 'all' && $status !== 'pending') {
                 $query->where('application_status', $status);
+                $countQuery->where('application_status', $status);
             } else if ($status === 'all') {
-                // Fetch applications that are fully approved or are pending with book_keeper being false
                 $query->where(function ($query) {
                     $query->whereHas('approvals', function ($subQuery) {
-                        // Fully approved applications
                         $subQuery->where('book_keeper', true)
                                  ->where('general_manager', true);
                     })->orWhereHas('approvals', function ($subQuery) {
-                        // Applications where book_keeper is true and general_manager is false
                         $subQuery->where('book_keeper', true)
                                  ->where('general_manager', false);
                     });
                 });
+                $countQuery = clone $query; // Clone after applying filters for accurate counts
             } else if ($status === 'pending') {
-                // Removed unnecessary fetching of loan applications
-                // Now directly filtering the query for 'pending' status for permission level 3 users
                 $query->whereHas('approvals', function ($query) {
                     $query->where('book_keeper', false);
                 })->where('application_status', 'pending');
-            }
+                $countQuery->whereHas('approvals', function ($query) {
+                    $query->where('book_keeper', false);
+                })->where('application_status', 'pending');
+            } 
         } else {
             if ($status === 'pending' || $status === 'all') {
                 $query->where('application_status', 'pending');
+                $countQuery->where('application_status', 'pending');
             } else {
-                // No results for unauthorized status
                 $query->where('id', '=', 0);
+                $countQuery->where('id', '=', 0);
             }
         }
+
+        if ($user->hasPermission(1)) {
+            // For users with permission level 1
+            $loanApplications = LoanApplication::whereHas('approvals', function ($query) {
+                $query->where('book_keeper', true);
+            })->where('application_status', '!=', 'reject')->get();
+    
+            // Calculate counts based on the same conditions
+            $allCount = $loanApplications->count();
+            $pendingCount = $loanApplications->where('application_status', 'pending')->count();
+            $approvedCount = $loanApplications->where('application_status', 'approved')->count();
+            $rejectedCount = $loanApplications->where('application_status', 'rejected')->count();
+        } elseif ($user->hasPermission(3)) {
+            // For users with permission level 3
+            $overAllloanApplications = LoanApplication::whereHas('approvals', function ($query) {
+                $query->where('book_keeper', true)
+                    ->where('general_manager', true);
+            })->get();
+            $overAllRejectedloanApplications = LoanApplication::whereHas('approvals', function ($query) {
+                $query->where('book_keeper', true)
+                    ->where('general_manager', '!=', true);
+            })->get();
+            
+            $pendingApplicationsQuery = LoanApplication::whereHas('approvals', function ($query) {
+                $query->where('book_keeper', false)->where('general_manager', false);
+            })->where('application_status', 'pending');
+            $loanApplications = LoanApplication::whereHas('approvals', function ($query) {
+                $query->where('book_keeper', true);
+            })->where('application_status', '!=', 'reject')->get();
+            // Calculate counts
+            $allCount = $loanApplications->count();
+            $pendingCount = $pendingApplicationsQuery->count();
+            $approvedCount = $loanApplications->where('application_status', 'approved')->count();
+            $rejectedCount = $loanApplications->where('application_status', 'rejected')->count();
+        } else {
+            $loanApplications = LoanApplication::where('application_status', 'pending')->get();
+    
+            $allCount = $loanApplications->count();
+            $pendingCount = $allCount;
+        }
+
         
-        // Apply search query within the permission and status logic
         if (!empty($searchQuery)) {
             $query->where(function($q) use ($searchQuery) {
                 $q->whereHas('user', function ($subQuery) use ($searchQuery) {
                     $subQuery->where('account_number', 'like', "%{$searchQuery}%");
                 })->orWhere('customer_name', 'like', "%{$searchQuery}%")
-                  ->orWhere('loan_reference', 'like', "%{$searchQuery}%"); // Add this line
+                  ->orWhere('loan_reference', 'like', "%{$searchQuery}%"); 
+            });
+            // Apply the same search conditions to $countQuery
+            $countQuery->where(function($q) use ($searchQuery) {
+                $q->whereHas('user', function ($subQuery) use ($searchQuery) {
+                    $subQuery->where('account_number', 'like', "%{$searchQuery}%");
+                })->orWhere('customer_name', 'like', "%{$searchQuery}%")
+                  ->orWhere('loan_reference', 'like', "%{$searchQuery}%"); 
             });
         }
         
-        // Apply sorting
         $query->orderBy('created_at', $sort);
         
-        // Correctly apply pagination
-        $loanApplications = $query->paginate(4);
-        
-        // For JSON response, including pagination links
+        // Pagination Setting
+        $loanApplications = $query->paginate(20);
+
+        $allCount = $loanApplications->count();
+        $pendingCount = $pendingApplicationsQuery->count();
+        $approvedCount = $loanApplications->where('application_status', 'approved')->count();
+        $rejectedCount = $loanApplications->where('application_status', 'rejected')->count();
+        // Now, calculate counts based on $countQuery with all conditions applied
+        $counts = [
+            'all' => $allCount,
+            'pending' => $pendingCount,
+            'approved' => $approvedCount,
+            'rejected' => $rejectedCount,
+        ];
         return response()->json([
             'html' => view('admin.loans.partials.loan_table', compact('loanApplications'))->render(),
             'pagination' => $loanApplications->appends([
@@ -140,16 +203,16 @@ class LoanProcessing extends Controller
                 'search' => $searchQuery,
                 'status' => $status
             ])->links()->toHtml(),
-            'counts' => [
-                'all' => LoanApplication::count(),
-                'pending' => LoanApplication::where('application_status', 'pending')->count(),
-                'approved' => LoanApplication::where('application_status', 'approved')->count(),
-                'rejected' => LoanApplication::where('application_status', 'rejected')->count(),
-            ],
-                
+            'counts' => $counts,
+            'currentFilter' => $request->status,
         ]);
     }
 
+
+
+    
+    // -----------------------------------------------------------------------------------
+    // Member's Porfolio
     public function application(Request $request, $loanReference)
     {
         $currentLoanApplication = LoanApplication::with('approvals')->where('loan_reference', $loanReference)->firstOrFail();
@@ -158,15 +221,13 @@ class LoanProcessing extends Controller
             return $approval->book_keeper == true;
         }) && $currentLoanApplication->application_status !== 'reject';
 
-        // Retrieve sort and direction parameters from the request, with defaults
-        $sortColumn = $request->query('sort', 'created_at'); // Default sort column
-        $sortDirection = $request->query('direction', 'desc'); // Default sort direction changed to 'desc'
+        $sortColumn = $request->query('sort', 'created_at'); 
+        $sortDirection = $request->query('direction', 'desc'); 
 
         // Initialize the query
         $query = LoanApplication::where('account_number_id', $currentLoanApplication->account_number_id);
 
         if ($sortColumn == 'application_status') {
-            // Handle custom sorting for application_status
             switch ($sortDirection) {
                 case 'pending':
                     $query->orderByRaw("FIELD(application_status, 'pending', 'approved', 'rejected')");
@@ -178,30 +239,26 @@ class LoanProcessing extends Controller
                     $query->orderByRaw("FIELD(application_status, 'rejected', 'pending', 'approved')");
                     break;
                 default:
-                    // Fallback to a default sort if an unexpected direction is provided
                     $query->orderBy('application_status', 'asc');
                     break;
             }
         } else {
-            // For other columns, ensure the direction is either 'asc' or 'desc'
-            $direction = in_array(strtolower($sortDirection), ['asc', 'desc']) ? $sortDirection : 'desc'; // Ensure default direction is 'desc' if not specified
+            $direction = in_array(strtolower($sortDirection), ['asc', 'desc']) ? $sortDirection : 'desc'; 
             $query->orderBy($sortColumn, $direction);
         }
 
-        // Execute the query with pagination
         $pastLoanApplications = $query->paginate(5);
 
         try {
             $mediaItems = $currentLoanApplication->mediaItems()->where('loan_id', $currentLoanApplication->id)->get();
         } catch (\Exception $e) {
             Log::error("Error fetching media items: " . $e->getMessage());
-            // Handle the error, e.g., by setting $mediaItems to an empty collection or array
         }
 
         if ($request->ajax()) {
             $tbodyHtml = view('admin.loans.partials.loan_table_info', ['pastLoanApplications' => $pastLoanApplications])->render();
             return response()->json([
-                'table' => $tbodyHtml, // Now this contains only <tbody> HTML
+                'table' => $tbodyHtml, 
             ]);
         }
 
@@ -215,8 +272,6 @@ class LoanProcessing extends Controller
         $user = auth()->user();
 
         if ($user->hasPermission(3)) {
-            // $loanApplication->update(['note' => $request->input('note')]);
-            // $loanApplication->update(['application_status' => '']);
             $transaction = new TransactionHistory();
             $transaction->audit_description = 'Loan Application Response';
             $transaction->transaction_type = 'Loan Application';
@@ -288,7 +343,7 @@ class LoanProcessing extends Controller
             $transaction->loan_application_id = $loanApplication->id;
             $transaction->currently_assigned_id = auth()->id();
             $transaction->save();
-            if ($client) { // Check if a client was found
+            if ($client) { 
                 $client->balance = $client->balance + $loanApplication->finance_charge;
                 $client->update(['remarks' => 'unpaid']);
                 $client->save();
@@ -333,6 +388,4 @@ class LoanProcessing extends Controller
             return redirect()->back()->with('error', 'Unauthorized action or invalid application status.');
         }
     }
-
-    
 }

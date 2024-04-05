@@ -53,12 +53,24 @@
                 </div>
                 <!-- /Whole top bar -->
                 <div class="row ps-0 my-3">
-                  <div class="col-lg-3 px-0">
+                  <div class="col-lg-12 px-0">
                     <label class="form-label ps-0" for="sort">Sort by:</label>
-                    <select id="sort" name="sort" class="form-control">
-                        <option value="desc" selected>Date (DESC)</option>
-                        <option value="asc">Date (ASC)</option>
-                    </select>
+                    <div class="d-flex w-100 justify-content-between">
+                      <div class="col-lg-3">
+                        <select id="sort" name="sort" class="form-control">
+                          <option value="desc" selected>Date (DESC)</option>
+                          <option value="asc">Date (ASC)</option>
+                      </select>
+                      </div>
+                      
+
+                      <div>
+                        <a href="{{ route('admin.export') }}" class="btn btn-success" type="button" >
+                          Export Applications
+                        </a>
+                      </div>
+                    </div>
+                    
                   </div>
                 </div>
               </div>
@@ -101,12 +113,6 @@
               </div>
               </div>
              
-                {{-- Pagination Links --}}
-                {{-- @if ($loanApplications->hasPages())
-                <div class="pagination-wrapper">
-                  {{ $loanApplications->links() }}
-                </div>
-                @endif --}}
                 <div id="pagination" class="pagination mt-3 flex-column">
                   <!-- Pagination links will be updated here by AJAX -->
               </div>
@@ -120,6 +126,10 @@
 
 @section('script')
 <script>
+document.addEventListener("DOMContentLoaded", function() {
+    window.scrollTo(0, 0);
+});
+
 $(document).ready(function() {
     // Show preloader at the start
     showPreloader();
@@ -153,57 +163,112 @@ $(document).ready(function() {
     $(document).on('click', '.pagination a', function(event) {
         event.preventDefault();
         var page = $(this).attr('href').split('page=')[1];
-        handlePagination(currentStatus, currentSort, query, page); // Use the global query variable
+        handlePagination(currentStatus, currentSort, query, page); 
     });
 });
 
 function fetchLoansByStatusAndSort(status, sort, query = '', page = 1, initialLoad = false) {
     setTimeout(function() {
-        // Construct the URL with the current page
+        
         var url = `/admin/loans/filter/${status}?sort=${sort}&search=${encodeURIComponent(query)}&page=${page}`;
         fetchAndUpdate(url, initialLoad);
-    }, 100); // Delay of 500ms before fetching
+    }, 100);
 }
 
 function handlePagination(status, sort, query  = '', page) {
-    // Show preloader here for pagination as well
     showPreloader();
     setTimeout(function() {
-        // Construct the URL for pagination
         var url = `/admin/loans/filter/${status}?sort=${sort}&search=${encodeURIComponent(query)}&page=${page}`;
         fetchAndUpdate(url);
-    }, 100); // Delay of 500ms before fetching
+    }, 100); 
 }
 
+function updateShowingResults(counts, currentFilter) {
+        const showingResultsElement = document.querySelector("#showing-results");
+        if (!showingResultsElement) return;
+
+        let text = `${counts[currentFilter] || 0}`; 
+        showingResultsElement.textContent = text;
+    }
+
 function fetchAndUpdate(url, initialLoad = false) {
+    var all = {{ $allCount }}
     fetch(url)
         .then(response => response.json())
         .then(data => {
             document.querySelector("#loan-applications tbody").innerHTML = data.html;
-            document.querySelector("#pagination").innerHTML = data.pagination; // Update pagination links
+            
+            // Check if pagination data is empty or not as expected
+            if (!data.pagination.trim()) {
+                // Manually create a minimal pagination structure
+                document.querySelector("#pagination").innerHTML = `
+                <nav class="d-flex justify-items-center justify-content-between">
+                    <div class="d-flex justify-content-between flex-fill d-sm-none">
+                        <ul class="pagination">
+                            <li class="page-item disabled" aria-disabled="true">
+                                <span class="page-link">« Previous</span>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="http://127.0.0.1:8000/admin/loans/filter/all?sort=desc&amp;search=&amp;status=all&amp;page=2" rel="next">Next »</a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="d-none flex-sm-fill d-sm-flex align-items-sm-center justify-content-sm-between">
+                        <div>
+                            <p class="small text-muted">
+                                Showing
+                                <span class="fw-semibold">1</span>
+                                to
+                                <span class="fw-semibold">1</span>
+                                of
+                                <span class="fw-semibold" id="showing-results"></span>
+                                results
+                            </p>
+                        </div>
+
+                        <div>
+                            <ul class="pagination">
+                                <li class="page-item disabled" aria-disabled="true" aria-label="« Previous">
+                                    <span class="page-link" aria-hidden="true">‹</span>
+                                </li>
+                                <li class="page-item active" aria-current="page"><span class="page-link">1</span></li>
+                                <li class="page-item disabled">
+                                    <a class="page-link" href="http://127.0.0.1:8000/admin/loans/filter/all?sort=desc&amp;search=&amp;status=all&amp;page=2" rel="next" aria-label="Next »">›</a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </nav>
+                `;
+            } else {
+                document.querySelector("#pagination").innerHTML = data.pagination;
+            }
+
+            // Update the counts based on the current filter
+            updateShowingResults(data.counts, data.currentFilter);
+
             if (initialLoad) {
-                // Hide preloader after the initial load is complete
                 hidePreloader();
             }
         })
         .catch(error => {
             console.error('Error:', error);
             if (initialLoad) {
-                // Hide preloader even if there's an error on initial load
                 hidePreloader();
             }
         });
 }
 
 function showPreloader() {
-    // Implement showing the preloader
     $('.spinner').show();
+    $('body').css('overflow', 'hidden'); // Make body unscrollable
 }
 
 function hidePreloader() {
-    // Implement hiding the preloader
     $('.spinner').hide();
     $('.spinner-body').hide();
+    $('body').css('overflow', 'auto'); // Revert body to scrollable
 }
 </script>
 @endsection
