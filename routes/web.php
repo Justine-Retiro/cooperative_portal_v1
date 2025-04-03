@@ -95,8 +95,8 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth', 'adminUser']], funct
         // Repository search
         Route::get('/repositories/search', [RepositoriesController::class, 'search'])->name('admin.search-repo');
 
-        // Pending
-
+        // Pending Members
+        Route::get('/repositories/pending', [RepositoriesController::class, 'pending'])->name('admin.repositories.pending');
 
 
 
