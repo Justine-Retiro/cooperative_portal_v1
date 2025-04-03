@@ -1,5 +1,5 @@
-To run this application, import the database file to your mysql server.
-```coop.sql```
+To run this application, run
+```php artisan migrate```
 
 After you importing the database, go back to the laravel project and simply run this command:
 ```php artisan serve```
