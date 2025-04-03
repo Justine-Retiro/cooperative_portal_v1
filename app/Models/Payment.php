@@ -50,6 +50,17 @@ class Payment extends Model
     {
         return $this->hasMany(LoanApplicationPayment::class, 'payment_id');
     }
+    public function loanApplications()
+    {
+        return $this->belongsToMany(LoanApplication::class, 'loan_application_payment')
+                    ->withPivot('remarks')
+                    ->withTimestamps();
+    }
+    public function sharePayments()
+    {
+        return $this->hasMany(SharePayment::class, 'payment_id');
+    }
+    
     public function transactionHistories()
     {
         // Assuming the relationship is correctly defined in the LoanApplication model now

@@ -71,5 +71,8 @@ class Kernel extends HttpKernel
         'checkClient' => \App\Http\Middleware\CheckClient::class,
         'resetStage' =>\App\Http\Middleware\ResetStagePassword::class,
         'checkBackup' =>\App\Http\Middleware\CheckBackup::class,
+        'checkCompleteProfile' =>\App\Http\Middleware\CheckCompleteProfile::class,
+        'checkGuest' => \App\Http\Middleware\CheckGuest::class,
+        'checkGenman' => \App\Http\Middleware\CheckGenman::class,
     ];
 }

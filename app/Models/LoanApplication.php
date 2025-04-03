@@ -17,6 +17,10 @@ class LoanApplication extends Model implements HasMedia
 
     public $table = 'loan_applications';
 
+    protected $casts = [
+        'due_date' => 'datetime',
+    ];
+    
     protected $appends = [
         'applicant_sign',
         'applicant_receipt',
@@ -145,6 +149,12 @@ class LoanApplication extends Model implements HasMedia
     {
         return $this->hasMany(LoanApplicationApprovals::class, 'loan_id');
         // return $this->hasOne(LoanApplicationApprovals::class, 'loan_id');
+    }
+    public function payments()
+    {
+        return $this->belongsToMany(Payment::class, 'loan_application_payment')
+                    ->withPivot('remarks')
+                    ->withTimestamps();
     }
     public function checkapprovals()
     {

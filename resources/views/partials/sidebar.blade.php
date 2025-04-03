@@ -82,6 +82,16 @@
             <span class="nav-text">Profile</span>
             </a>
         </li>
+        @if (Auth::user()->permission_id == 1)
+        <li>
+            <a href="{{ route('admin.audit.index') }}">
+            <span class="fa-stack fa-lg pull-left">
+                <i class="bi bi-briefcase"></i>
+            </span>
+            <span class="nav-text">Audit Logs</span>
+            </a>
+        </li>
+        @endif
         <li>
             <a href="{{ route('logout') }}"  onclick="event.preventDefault();
             document.getElementById('logout-form').submit();"
@@ -120,12 +130,13 @@
         </a>
     </li>
     <li>
-        <a href="{{ route('member.loan') }}">
-        <span class="fa-stack fa-lg pull-left"
-            ><i class="bi bi-wallet2"></i></span>
-            <span class="nav-text">Loan</span> 
-        </a
-        >
+        @if (Auth::user()->default_profile == 0)
+            <a href="{{ route('member.loan') }}">
+            <span class="fa-stack fa-lg pull-left"
+                ><i class="bi bi-wallet2"></i></span>
+                <span class="nav-text">Loan</span> 
+            </a>
+        @endif
     </li>
 
     <li>Settings</li>
@@ -137,13 +148,7 @@
         <span class="nav-text">Profile</span>
         </a>
     </li>
-    {{-- <li>
-        <a href="#"
-            data-bs-toggle="modal"
-            data-bs-target="#helpModal" ><span class="fa-stack fa-lg pull-left"
-            ><i class="bi bi-info-circle"></i></span
-        ><span class="nav-text">Help</span></a>
-    </li> --}}
+
     <li>
         <a href="{{ route('logout') }}"  onclick="event.preventDefault();
         document.getElementById('logout-form').submit();"
@@ -158,20 +163,23 @@
     </ul>
 </div>
 @endif
-<!-- Modal -->
-<div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="helpModalLabel">Helps</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        Cooperative Contacts
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-      </div>
-    </div>
-  </div>
-</div>
+<script>
+    $(document).ready(function() {
+        function adjustSidebarHeight() {
+            var contentHeight = $('#page-content-wrapper').outerHeight();
+            var sidebarHeight = $('#sidebar-wrapper').outerHeight();
+            if (sidebarHeight < contentHeight) {
+                $('#sidebar-wrapper').css('height', contentHeight);
+            }
+        }
+        adjustSidebarHeight();
+
+        $(window).resize(function() {
+            adjustSidebarHeight();
+        });
+
+        $(document).bind("DOMSubtreeModified", function() {
+            adjustSidebarHeight();
+        });
+    });
+</script>

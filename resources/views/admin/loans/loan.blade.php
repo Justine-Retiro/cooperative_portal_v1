@@ -24,19 +24,19 @@
                   <div class="col-lg-12">
                     <!-- Whole top bar -->
                     <div class="row d-flex align-items-center justify-content-between flex-lg-row">
-                      <div class="col-lg-auto border d-flex justify-content-center px-1 me-2" style="border-radius: 10px;">
-                        <div class="py-1 w-100 d-flex justify-content-between ">
-                          <div class="col-auto pt-0 mx-1 w-auto">
-                            <button class="btn text-primary filter-btn fw-medium" data-status="all">All <small>{{ $allCount }}</small></button>
+                      <div class="col-lg-auto col-sm-auto border d-flex justify-content-center px-1 me-2 " style="border-radius: 10px;">
+                        <div class="py-1 w-100 d-flex justify-content-between flex-column flex-sm-row">
+                          <div class="col-auto pt-0 mx-sm-1 mx-0 w-auto">
+                            <button class="btn text-primary text-start w-100 filter-btn fw-medium" data-status="all" onclick="$('.filter-btn').removeClass('active'); $(this).addClass('active');">All <small>{{ $allCount }}</small></button>
                           </div>
-                          <div class="col-auto pt-0 me-1 w-auto">
-                            <button class="btn text-primary-emphasis filter-btn fw-medium" data-status="pending">Pending <small>{{ $pendingCount }}</small></button>
+                          <div class="col-auto pt-0 me-sm-1 me-0 w-auto">
+                            <button class="btn text-primary-emphasis text-start w-100 filter-btn fw-medium" data-status="pending" onclick="$('.filter-btn').removeClass('active'); $(this).addClass('active');">Pending <small>{{ $pendingCount }}</small></button>
                           </div>
-                          <div class="col-auto pt-0 me-1 w-auto">
-                            <button class="btn text-success filter-btn fw-medium" data-status="approved">Approved <small>{{ $approvedCount }}</small></button>
+                          <div class="col-auto pt-0 me-sm-1 me-0 w-auto">
+                            <button class="btn text-success text-start filter-btn w-100 fw-medium" data-status="approved" onclick="$('.filter-btn').removeClass('active'); $(this).addClass('active');">Approved <small>{{ $approvedCount }}</small></button>
                           </div>
-                          <div class="col-auto pt-0 me-1 w-auto">
-                            <button class="btn text-danger filter-btn fw-medium" data-status="rejected">Rejected <small>{{ $rejectedCount }}</small></button>
+                          <div class="col-auto pt-0 me-sm-1 me-0 w-auto">
+                            <button class="btn text-danger text-start filter-btn w-100 fw-medium" data-status="rejected" onclick="$('.filter-btn').removeClass('active'); $(this).addClass('active');">Rejected <small>{{ $rejectedCount }}</small></button>
                           </div>
                         </div>
                       </div>
@@ -53,24 +53,28 @@
                 </div>
                 <!-- /Whole top bar -->
                 <div class="row ps-0 my-3">
-                  <div class="col-lg-12 px-0">
-                    <label class="form-label ps-0" for="sort">Sort by:</label>
-                    <div class="d-flex w-100 justify-content-between">
-                      <div class="col-lg-3">
-                        <select id="sort" name="sort" class="form-control">
-                          <option value="desc" selected>Date (DESC)</option>
-                          <option value="asc">Date (ASC)</option>
-                      </select>
+                  <div class="col-12 d-sm-flex justify-content-between px-0">
+                    <div class="col-xl-4 col-lg-4 col-md-4 col-sm-6">
+                      <label class="form-label ps-0" for="sort">Sort by:</label>
+                      <div class="d-flex w-100 justify-content-between">
+                        <div class="col-lg-6 w-100">
+                          <select id="sort" name="sort" class="form-control">
+                            <option value="desc" selected>Date of Applying (DESC)</option>
+                            <option value="asc">Date of Applying (ASC)</option>
+                        </select>
+                        </div>
                       </div>
-                      
-
-                      <div>
-                        <a href="{{ route('admin.export') }}" class="btn btn-success" type="button" >
+                    </div>
+                    <div class="col-xxl-2col-xl-3 col-lg-2 col-md-4 col-sm-4 d-flex justify-content-sm-end align-items-center align-items-sm-end mt-2 mt-sm-0">
+                      <div class="col-xl-5 col-lg-4 col-md-12 w-100 d-flex justify-content-sm-end align-items-center">
+                        <a href="{{ route('admin.export') }}" class="btn btn-success w-auto" type="button" >
+                          <i class="bi bi-box-arrow-up-left"></i>
+                          &nbsp;
                           Export Applications
                         </a>
                       </div>
+                      
                     </div>
-                    
                   </div>
                 </div>
               </div>
@@ -104,7 +108,11 @@
                           <td> {{ \Carbon\Carbon::parse($loanApplication->application_date)->format('m/d/Y') }}</td>
                           <td> Php {{ number_format($loanApplication->financed_amount, 2) }}</td>
                           <td> Php {{ number_format($loanApplication->finance_charge, 2) }}</td>
-                          <td class="@if($loanApplication->application_status == 'pending') text-primary-emphasis fw-medium @elseif($loanApplication->application_status == 'approved') text-success fw-medium @elseif($loanApplication->application_status == 'rejected') text-danger fw-medium @endif"> {{ ucfirst($loanApplication->application_status) }}</td>
+                          <td>
+                            <span class="@if($loanApplication->application_status == 'pending') text-primary-emphasis bg-primary-subtle fw-medium @elseif($loanApplication->application_status == 'approved') text-success fw-medium @elseif($loanApplication->application_status == 'rejected') text-danger fw-medium @endif px-2 py-1 rounded">{{ $loanApplication->application_status }}</span>
+
+                          </td>
+                          {{-- <td class="@if($loanApplication->application_status == 'pending') text-primary-emphasis fw-medium @elseif($loanApplication->application_status == 'approved') text-success fw-medium @elseif($loanApplication->application_status == 'rejected') text-danger fw-medium @endif"> {{ ucfirst($loanApplication->application_status) }}</td> --}}
                         </tr>
                       @endforeach
                     </tbody>
@@ -165,6 +173,7 @@ $(document).ready(function() {
         var page = $(this).attr('href').split('page=')[1];
         handlePagination(currentStatus, currentSort, query, page); 
     });
+    $('.filter-btn[data-status="all"]').trigger('click');
 });
 
 function fetchLoansByStatusAndSort(status, sort, query = '', page = 1, initialLoad = false) {
@@ -262,7 +271,7 @@ function fetchAndUpdate(url, initialLoad = false) {
 
 function showPreloader() {
     $('.spinner').show();
-    $('body').css('overflow', 'hidden'); // Make body unscrollable
+    // $('body').css('overflow', 'hidden'); // Make body unscrollable
 }
 
 function hidePreloader() {

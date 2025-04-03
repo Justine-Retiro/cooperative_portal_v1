@@ -83,7 +83,7 @@ class ForgotPasswordController extends Controller
 
             return response()->json(['message' => 'A new verification code has been sent to your email.']);
         } catch (\Exception $e) {
-            \Log::error('Failed to resend verification code: ' . $e->getMessage());
+            // \Log::error('Failed to resend verification code: ' . $e->getMessage());
             return response()->json(['message' => 'An error occurred while resending the verification code. Please try again.']);
         }
     }
@@ -96,15 +96,15 @@ class ForgotPasswordController extends Controller
 
     public function resetPassword(Request $request)
     {
-        Log::info('Reset Password method called.');
+        // Log::info('Reset Password method called.');
     
         $request->validate([
-            'password' => 'required|confirmed|min:8',
+            'password' => 'required|confirmed|min:8|regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/',
         ]);
     
         $user = Auth::user();
         if (!$user) {
-            Log::error('No authenticated user found.');
+            // Log::error('No authenticated user found.');
             return back()->withErrors(['error' => 'An unexpected error occurred. Please try again.']);
         }
     

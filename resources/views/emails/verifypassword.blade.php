@@ -4,69 +4,39 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Email Verification</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
-    <style>
-    #header{
-        border-bottom: 1px solid #CCCCCC;
-    }
-    table, th, td {
-            border: none;
-        }
-    @media (max-width: 768px) {
-        .card {
-            width: 90% !important; /* Adjust card width on smaller screens */
-        }
-        .img-fluid {
-            max-width: 80px; /* Adjust logo size on smaller screens */
-            height: auto;
-        }
-        h2 {
-            font-size: 16px; /* Adjust heading size on smaller screens */
-        }
-        .btn-lg {
-            padding: .5rem 1rem; /* Adjust button size on smaller screens */
-            font-size: .875rem;
-        }
-    }
-    </style>
 </head>
-<body>
-    <div class="container py-3">
-        <div class="card text-center mx-auto" style="width: 50%;">
-            <div class="card-body">
-                <div class="">
-                    
-                </div>
-                <table class="table">
+<body style="font-family: Arial, sans-serif;">
+    <div style="padding: 1.5rem 0; max-width: 600px; margin: 0 auto; text-align: center;">
+        <div style="margin: 0 auto; width: 50%;">
+            <div style="padding: 1.5rem;">
+                <table style="width: 100%; border-collapse: collapse;">
                     <tbody>
-                        <tr id="header">
-                            <td colspan="2" class="text-start d-flex align-items-center gap-3"><img src="{{ asset('/assets/logo.png') }}" class="img-fluid" alt="Logo" width="100" height="25px"><h2>Code Verification</h2></td>
+                        <tr style="border-bottom: 1px solid #CCCCCC;">
+                            <td colspan="2" style="text-align: left; display: flex; align-items: center; gap: 1rem;"><img src="{{ asset('/assets/logo.png') }}" style="max-width: 100%; height: auto;" alt="Logo" width="100" height="25px"><h2 style="font-size: 24px;">Code Verification</h2></td>
                         </tr>
                         <tr>
-                            <td colspan="2" class="text-start">
-                                <p class="mb-0">Hello, {{ $name }}</p>
-                                <p class="mb-0">Please complete the change password process for the Cooperative Portal by entering the code provided below:</p>
-                                <div class="text-center d-flex flex-column justify-content-center w-auto my-4">
-                                    <div class="d-flex justify-content-center mb-3">
-                                        <span class="border p-3 fs-1 w-auto">{{ $verificationCode }}</span>
+                            <td colspan="2" style="text-align: left;">
+                                <p style="margin-bottom: 0;">Hello, {{ $name }}</p>
+                                <p style="margin-bottom: 0;">Please complete the change password process for the Cooperative Portal by entering the code provided below:</p>
+                                <div style="text-align: center; display: flex; flex-direction: column; justify-content: center; width: auto; margin-top: 1.5rem; margin-bottom: 1.5rem;">
+                                    <div style="display: flex; justify-content: center; margin-bottom: 1rem;">
+                                        <span style="border: 1px solid #ccc; border-radius: 5px padding: 1.5rem; font-size: 2rem; width: auto;">{{ $verificationCode }}</span>
                                     </div>
                                 </div>
-                                <p class="mb-0">If you did not request this, no further action is required.</p>
-                                <p class="mb-0">Best Regards,<br>Credit Cooperative Partners</p>
+                                <p style="margin-bottom: 0;">If you did not request this, no further action is required.</p>
+                                <p style="margin-bottom: 0;">Best Regards,<br>Credit Cooperative Partners</p>
                             </td>
                         </tr>
                     </tbody>
                 </table>
                 <hr>
-            <div class="text-start mt-4">
-                <small class="text-muted">This message was sent to <a href="mailto:{{ $email }}">{{ $email }}</a> and intended for {{ $name }}. <br>If you have questions or complaints, please contact us.</small>
+            <div style="text-align: left; margin-top: 1rem;">
+                <small style="color: #6c757d;">This message was sent to <a href="mailto:{{ $email }}">{{ $email }}</a> and intended for {{ $name }}. <br>If you have questions or complaints, please contact us.</small>
                 <br>
-                <small class="text-muted">© {{ date('Y') }} Credit Cooperative Partners. All rights reserved.</small>
+                <small style="color: #6c757d;">© {{ date('Y') }} Credit Cooperative Partners. All rights reserved.</small>
             </div>
         </div>
     </div>
-    <!-- Bootstrap Bundle with Popper -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+

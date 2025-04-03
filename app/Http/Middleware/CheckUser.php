@@ -17,9 +17,27 @@ class CheckUser
      */
     public function handle(Request $request, Closure $next)
     {
-        if (!Auth::check() || Auth::user()->role_id == null || !session('is_birthdate_verified') || Auth::user()->role_id != 2) {
+        if (!Auth::check()) {
+            // Log::info('Redirecting to login: User not authenticated');
             return redirect()->route('login');
         }
+    
+        $user = Auth::user();
+        if ($user->role_id == null) {
+            // Log::info('Redirecting to login: User role not set');
+            return redirect()->route('login');
+        }
+    
+        if (!$user->email_verified) {
+            // Log::info('Redirecting to login: Email not verified');
+            return redirect()->route('login');
+        }
+    
+        if ($user->role_id != 2) {
+            // Log::info('Redirecting to login: User role is not 2');
+            return redirect()->route('login');
+        }
+    
         return $next($request);
     }
 }

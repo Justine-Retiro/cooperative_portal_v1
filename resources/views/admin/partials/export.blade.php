@@ -67,7 +67,7 @@
                                             <option value="">Select a field</option>
                                             @php
                                                 $fields = [
-                                                    'id', 'account_number', 'customer_name', 'age', 'birth_date', 'date_employed',
+                                                    'account_number', 'customer_name', 'age', 'birth_date', 'date_employed',
                                                     'contact_num', 'college', 'taxid_num', 'loan_type', 'work_position',
                                                     'retirement_year', 'application_date', 'time_pay', 'application_status',
                                                     'financed_amount', 'monthly_pay', 'finance_charge', 'balance', 'due_date', 'remarks'
@@ -109,18 +109,18 @@
                             <div id="customExportSection" class="export-section" style="display: none;">
                                 <p>Choose the data you want to export.</p>
                                 <form action="{{ route('admin.export') }}" method="POST" id="exportForm">
-                                    @csrf
+                                    <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                                    @method('POST')
                                     <div class="form-group">
                                         <label for="fieldSelection">Add Fields:</label>
                                         <select class="form-control" id="fieldSelection">
                                             <option value="">Select a field</option>
                                             @php
                                                 $fields = [
-                                                    'id', 'loan_reference', 'customer_name', 'age', 'birth_date', 'date_employed', 
-                                                    'contact_num', 'college', 'taxid_num', 'loan_type', 'work_position', 
-                                                    'retirement_year', 'application_date', 'time_pay', 'application_status', 
-                                                    'financed_amount', 'monthly_pay', 'finance_charge', 'balance', 'note', 
-                                                    'due_date', 'remarks', 'created_at'
+                                                    'account_number', 'loan_reference', 'customer_name', 'age', 'birth_date', 'date_employed',
+                                                    'contact_num', 'college', 'taxid_num', 'loan_type', 'work_position',
+                                                    'retirement_year', 'application_date', 'time_pay', 'application_status',
+                                                    'financed_amount', 'monthly_pay', 'finance_charge', 'balance', 'due_date', 'remarks'
                                                 ];
                                             @endphp
                                             @foreach($fields as $field)
@@ -136,8 +136,8 @@
                                         <thead>
                                             <tr>
                                                 <th style="width: 30px;"></th>
-                                                <th>Field Name</th>
-                                                <th>Option</th>
+                                                <th class="fw-medium">Field Name</th>
+                                                <th class="fw-medium">Option</th>
                                                 <th></th>
                                             </tr>
                                         </thead>
@@ -145,7 +145,6 @@
                                             <!-- Rows will be added here dynamically -->
                                         </tbody>
                                     </table>
-                                </form>
                             </div>
                         </div>
                     </div>
@@ -153,9 +152,10 @@
                 <div class="mt-3">
                     <input type="hidden" name="export_type" value="custom">
                     <button type="submit" id="btnCustomExport" class="btn btn-success d-none">Export</button>
+                </form>
                 </div>
                 <div id="selectedFieldsContainer"></div>
-                <div class="mt-3">
+                <div class="mt-3 defaultQuickExportForm">
                     <form id="defaultQuickExportForm" method="POST">
                         @csrf
                         <input type="hidden" name="export_type" value="quick">
@@ -189,15 +189,131 @@
 @endsection
 
 @section('script')
+
+@if(session('error'))
+    <script>
+        $(document).ready(function() {
+            toastr.error('{{ session('error') }}');
+        });
+    </script>
+@endif
+
+
 <script>
 $(document).ready(function() {
+    $('#dynamicExcelPreviewBtn').click(function(event) {
+        event.preventDefault();
+        var filters = {};
+        var selectedFieldNames = [];
+        var isValid = true; // Flag to check if all conditions are met
+
+        $('#fieldsTable tbody tr').each(function() {
+            var fieldName = $(this).find('td[data-field-name]').data('field-name');
+            var fieldOption = $(this).find('input[name="' + fieldName + '_filter_type"]:checked').val();
+            var operator = $(this).find('select[name="' + fieldName + '_operator"]').val();
+            var value = '';
+
+            // Special handling for 'account_number' field
+            if (fieldName === 'account_number' && fieldOption === 'custom_based') {
+                value = $(this).find('.customRangeInputs input[name="' + fieldName + '_value"]').val();
+            } else {
+                value = $(this).find('input[name="' + fieldName + '_value"]').val() || $(this).find('select[name="' + fieldName + '_value"]').val();
+            }
+
+            // Handle numeric and date fields with range or operator-based options
+            var from = '';
+            var to = '';
+            if (fieldOption === 'range_based' || fieldOption === 'operator_based') {
+                from = $(this).find('input[name="' + fieldName + '_from"]').val();
+                to = $(this).find('input[name="' + fieldName + '_to"]').val();
+            }
+
+            filters[fieldName] = { fieldOption, operator, value, from, to };
+            selectedFieldNames.push(fieldName);
+
+            // Apply this validation only on custom export
+            if ($('input[name="exportOption"]').val() === 'custom') {
+                if (fieldOption !== 'no_filter' && (!from && !to)) {
+                    isValid = false;
+                    toastr.error('Please provide a value for all selected filters.');
+                    return false; // Break the loop
+                }
+            }
+        });
+
+        if (!isValid) {
+            return; // Stop the function if validation fails
+        }
+
+        $.ajax({
+            url: '/admin/fetch-filtered-data',
+            type: 'POST',
+            data: { filters: filters },
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(response) {
+                console.log(response);
+                var tableHtml = '<table class="table table-bordered"><thead><tr>';
+
+                selectedFieldNames.forEach(function(fieldName) {
+                    tableHtml += `<th>${fieldName.replace(/_/g, ' ').toUpperCase()}</th>`;
+                });
+
+                tableHtml += '</tr></thead><tbody>';
+
+                response.forEach(function(item) {
+                    tableHtml += '<tr>';
+                    selectedFieldNames.forEach(function(fieldName) {
+                        // Check if the field value is 'N/A' and display it accordingly
+                        var displayValue = item[fieldName] === 'N/A' ? 'N/A' : (item[fieldName] || '');
+                        tableHtml += `<td>${displayValue}</td>`;
+                    });
+                    tableHtml += '</tr>';
+                });
+
+                tableHtml += '</tbody></table>';
+
+                $('#dynamicExcelPreviewModal .modal-body').html(tableHtml);
+                $('#dynamicExcelPreviewModal').modal('show');
+            },
+            error: function(xhr, status, error) {
+                console.error("Error fetching data: ", error);
+            }
+        });
+    });
     $('[data-bs-toggle="tooltip"]').tooltip();
 
-    $('.visibleExportBtn').click(function() {
-        // Programmatically click the hidden submit button inside the form
-        $('#btnQuickExportForm').click();
+    $('#btnCustomExport, .visibleExportBtn').click(function(event) {
+        event.preventDefault();  // Prevent the default form submission
+
+        if ($(this).hasClass('visibleExportBtn')) {
+            // Programmatically click the hidden submit button inside the form
+            $('#btnQuickExportForm').click();
+        } else {
+            // let hasValidFilters = false;
+
+            // // Check each row to see if there's at least one with a filter other than 'no_filter' and ensure it has a value
+            // $('#fieldsTable tbody tr, #quickFieldsTable tbody tr').each(function() {
+            //     const filterType = $(this).find('input[name$="_filter_type"]:checked').val();
+            //     const filterValue = $(this).find('input[name$="_value"]').val();
+            //     if (filterType && filterType !== 'no_filter' && filterValue) {
+            //         hasValidFilters = true;
+            //     }
+            // });
+
+            // if (!hasValidFilters) {
+            //     alert("Please select at least one filter other than 'No Filter' and provide a value before exporting.");
+            //     return;
+            // }
+
+            // If validation passes, proceed with form submission
+            $(this).closest('form').submit();
+        }
     });
 
+   
+    // ____________________Buttons_____________________//
     $('#quickExport').click(function() {
         $('#exportQuick').show();
         $('#quickExportSection').show();
@@ -216,6 +332,21 @@ $(document).ready(function() {
         $('#exportCustom').removeClass('d-none').addClass('d-block');
     });
 
+
+    $('input[name="exportOption"]').change(function() {
+        var exportVal = $(this).val();
+        console.log("Export option changed to:", exportVal);
+        if (exportVal === 'quick') {
+            console.log("Showing quick export forms");
+            $('.defaultQuickExportForm, #defaultQuickExportForm, #btnQuickExportForm').show();
+            $('#customQuickExportOptions').hide(); // Ensure custom options are hidden when switching back to quick
+            $('.visibleExportBtn').hide(); // Hide visible buttons that should not be shown in quick export
+        } else {
+            console.log("Hiding quick export forms");
+            $('.defaultQuickExportForm, #defaultQuickExportForm, #btnQuickExportForm').hide();
+        }
+    });   
+    
     $('input[name="quickExportOption"]').change(function() {
         if ($(this).val() === 'custom') {
             $('#customQuickExportOptions').show();
@@ -227,16 +358,18 @@ $(document).ready(function() {
             $('.visibleExportBtn').hide();
         }
     });
+    // _________________________________________________________//
 
+    // ________________Input Fields_____________________________//
     const fieldsWithCustomRange = [
-        'retirement_year', 'application_date', 'time_pay', 'application_status', 
-        'financed_amount', 'monthly_pay', 'finance_charge', 'balance', 'note', 
-        'due_date', 'remarks', 'created_at', 'loan_type', 'work_position', 
-        'college', 'age', 'date_employed', 'birth_date'
+        'account_number', 'time_pay', 'application_status', 
+        'remarks', 'loan_type', 'work_position', 
+        'college',
     ];
-    const numericalFields = ['monthly_pay', 'finance_charge', 'balance', 'financed_amount', 'age'];
+    const numericalFields = ['monthly_pay', 'finance_charge', 'balance', 'financed_amount', 'age', 'retirement_year'];
     const dateFields = ['date_employed', 'due_date', 'application_date', 'created_at', 'birth_date'];
 
+    // ___________________ Custom Export ____________________________//
     // Add field for custom export
     $('#addFieldBtn').click(function() {
         var selectedField = $('#fieldSelection').val();
@@ -252,12 +385,14 @@ $(document).ready(function() {
         if (isNumericalField) inputType = 'number';
         else if (isDateField) inputType = 'date';
 
-        var filterTypeSelectionHtml = isNumericalField || isDateField ? `
+        // Generate filter type selection HTML based on field properties
+        var filterTypeSelectionHtml = `
             <div>
                 <div class="form-check">
                     <input class="form-check-input" type="radio" name="${selectedField}_filter_type" id="${selectedField}_no_filter" value="no_filter" checked>
                     <label class="form-check-label" for="${selectedField}_no_filter">No Filters</label>
                 </div>
+                ${isNumericalField || isDateField ? `
                 <div class="form-check">
                     <input class="form-check-input" type="radio" name="${selectedField}_filter_type" id="${selectedField}_range_based" value="range_based">
                     <label class="form-check-label" for="${selectedField}_range_based">Range Based</label>
@@ -265,9 +400,14 @@ $(document).ready(function() {
                 <div class="form-check">
                     <input class="form-check-input" type="radio" name="${selectedField}_filter_type" id="${selectedField}_operator_based" value="operator_based">
                     <label class="form-check-label" for="${selectedField}_operator_based">Operator Based</label>
-                </div>
+                </div>` : ''}
+                ${allowsCustomRange ? `
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="${selectedField}_filter_type" id="${selectedField}_custom_based" value="custom_based">
+                    <label class="form-check-label" for="${selectedField}_custom_based">Custom</label>
+                </div>` : ''}
             </div>
-        ` : '';
+        `;
 
         var customInputsHtml;
         switch (selectedField) {
@@ -307,34 +447,6 @@ $(document).ready(function() {
                     </td>
                 `;
                 break;
-            case 'retirement_year':
-                customInputsHtml = `
-                    <td>
-                        <div class="d-flex gap-2">
-                            <div>
-                                <label for="${selectedField}_from">From:</label>
-                                <input type="number" class="form-control" id="${selectedField}_from" name="${selectedField}_from">
-                            </div>
-                            <div>
-                                <label for="${selectedField}_to">To:</label>
-                                <input type="number" class="form-control" id="${selectedField}_to" name="${selectedField}_to">
-                            </div>
-                        </div>
-                    </td>
-                `;
-                break;
-            case 'taxid_num':
-            case 'age':
-            case 'account_number':
-            case 'college':
-            case 'customer_name':
-            case 'work_position':
-                customInputsHtml = `
-                    <td>
-                        <input type="text" class="form-control" name="${selectedField}_value" placeholder="Enter ${selectedField.replace('_', ' ')}">
-                    </td>
-                `;
-                break;
             default:
                 customInputsHtml = allowsCustomRange || isNumericalField || isDateField ? `
                     <td class="customInputs">
@@ -345,28 +457,33 @@ $(document).ready(function() {
                                 <div class="d-flex gap-2">
                                     <select class="form-control" name="${selectedField}_operator">
                                         <option value="">Select Operator</option>
-                                        <option value="==">Equal to</option>
+                                        <option value="=">Equal to</option>
                                         <option value="<=">Less than or equal to</option>
                                         <option value=">=">Greater than or equal to</option>
                                     </select>
-                                    <input type="${inputType}" class="form-control" name="${selectedField}_value" placeholder="Value">
+                                    <input type="${inputType}" class="form-control" name="${selectedField}_value" min="0" placeholder="Value" required>
                                 </div>
                             </div>
                             <div class="rangeInputs" style="display:none;">
                                 <div class="d-flex gap-2">
                                     <div>
                                         <label for="${selectedField}_from">From:</label>
-                                        <input type="${inputType}" class="form-control" id="${selectedField}_from" name="${selectedField}_from">
+                                        <input type="${inputType}" class="form-control" id="${selectedField}_from" name="${selectedField}_from" required>
                                     </div>
                                     <div>
                                         <label for="${selectedField}_to">To:</label>
-                                        <input type="${inputType}" class="form-control" id="${selectedField}_to" name="${selectedField}_to">
+                                        <input type="${inputType}" class="form-control" id="${selectedField}_to" name="${selectedField}_to" required>
                                     </div>
                                 </div>
                             </div>
+                            ${allowsCustomRange ? `
+                                <div class="customRangeInputs">
+                                    <input type="text" class="form-control" name="${selectedField}_value" placeholder="Enter custom value" required>
+                                </div>
+                            ` : ''}
                         </div>
                     </td>
-                ` : '<td>N/A</td>';
+                ` : '<td></td>';
         }
 
         var newRowHtml = `
@@ -374,7 +491,7 @@ $(document).ready(function() {
                 <td class="drag-handle"><i class="bi bi-grip-vertical"></i></td>
                 <td data-field-name="${selectedField}">${selectedFieldName}</td>
                 ${customInputsHtml}
-                <td><button type="button" class="btn btn-danger btn-sm deleteFieldBtn"><i class="bi bi-trash"></i></button></td>
+                <td><button type="button" class="btn btn-danger btn-sm deleteFieldBtn" data-id="${selectedField}"><i class="bi bi-trash"></i></button></td>
             </tr>
         `;
 
@@ -386,23 +503,43 @@ $(document).ready(function() {
             const operatorInputs = newRow.find('.operatorInputs');
             const rangeInputs = newRow.find('.rangeInputs');
             const customFilter = newRow.find('.customFilter');
+            const customRangeInputs = newRow.find('.customRangeInputs');
 
             if (selectedFilterType === 'no_filter') {
                 customFilter.addClass('invisible');
+                customRangeInputs.hide();
             } else if (selectedFilterType === 'range_based') {
                 customFilter.removeClass('invisible').addClass('visible');
                 operatorInputs.hide();
                 rangeInputs.show();
+                customRangeInputs.hide();
             } else if (selectedFilterType === 'operator_based') {
                 customFilter.removeClass('invisible').addClass('visible');
                 operatorInputs.show();
                 rangeInputs.hide();
+                customRangeInputs.hide();
+            } else if (selectedFilterType === 'custom_based') {
+                customFilter.removeClass('invisible').addClass('visible');
+                operatorInputs.hide();
+                rangeInputs.hide();
+                customRangeInputs.show();
             }
         });
 
         $('#fieldSelection').val(''); // Reset the dropdown
     });
+    
 
+    function checkFieldSelection() {
+        var hasFields = $('#quickFieldsTable tbody tr').length > 0;
+        $('#btnQuickExport').prop('disabled', !hasFields); // Enable button only if fields are selected
+    }
+
+
+    
+
+
+    // ________________Quick Custom Export___________________________ //
     // Add field for quick custom export
     $('#addQuickFieldBtn').click(function() {
         var selectedField = $('#quickFieldSelection').val();
@@ -473,22 +610,6 @@ $(document).ready(function() {
                     </td>
                 `;
                 break;
-            case 'retirement_year':
-                customInputsHtml = `
-                    <td>
-                        <div class="d-flex gap-2">
-                            <div>
-                                <label for="${selectedField}_from">From:</label>
-                                <input type="number" class="form-control" id="${selectedField}_from" name="${selectedField}_from">
-                            </div>
-                            <div>
-                                <label for="${selectedField}_to">To:</label>
-                                <input type="number" class="form-control" id="${selectedField}_to" name="${selectedField}_to">
-                            </div>
-                        </div>
-                    </td>
-                `;
-                break;
             case 'taxid_num':
             case 'account_number':
             case 'college':
@@ -496,7 +617,7 @@ $(document).ready(function() {
             case 'work_position':
                 customInputsHtml = `
                     <td>
-                        <input type="text" class="form-control" name="${selectedField}_value" placeholder="Enter ${selectedFieldName}">
+                        <input type="text" class="form-control" name="${selectedField}_value" placeholder="Enter ${selectedFieldName}" required>
                     </td>
                 `;
                 break;
@@ -631,35 +752,145 @@ $(document).ready(function() {
     });
 
     $('#quickFieldsTable').on('click', '.deleteFieldBtn', function() {
-        $(this).closest('tr').remove();
+        var fieldName = $(this).closest('tr').find('td[data-field-name]').data('field-name');
+        if (fieldName && quickExportFilters[fieldName]) {
+            delete quickExportFilters[fieldName];  // Remove the filter from the object
+        }
+        $(this).closest('tr').remove();  // Remove the row from the table
     });
 
-    $('#btnCustomExport').click(function() {
-        $('#exportForm input[type="hidden"]').not('[name="_token"], [name="export_type"]').remove();
+    $.ajaxSetup({
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        }
+    });
 
+    // _________________________Exporting____________________________ //
+    $('#btnCustomExport').click(function(event) {
+        event.preventDefault(); // Prevent the default form submission
+        event.stopPropagation();
+        var customExportOption = $('input[name="exportOption"]:checked').val();
+
+        if (customExportOption === 'custom' && !$('#fieldsTable tbody tr').length) {
+            toastr.error('No fields selected for custom export.');
+            return;
+        }
+
+        var hasSelectedFields = $('#fieldsTable tbody tr').length > 0;
+
+        if (!hasSelectedFields) {
+            toastr.error('Selected fields are required for custom export.');
+            return;
+        }
+
+        // Clear previous hidden inputs related to filters
+        $('#exportForm input[type="hidden"]').remove();
+
+        // Append necessary data for each selected field
         $('#fieldsTable tbody tr').each(function() {
             var fieldName = $(this).find('td[data-field-name]').data('field-name');
-            var fieldOption = $(this).find('input[name="' + fieldName + '_option"]:checked').val();
-            var operator = $(this).find('select[name="' + fieldName + '_operator"]').val();
-            var value = $(this).find('input[name="' + fieldName + '_value"]').val();
-            var from = $(this).find('input[id="' + fieldName + '_from"]').val();
-            var to = $(this).find('input[id="' + fieldName + '_to"]').val();
+            var filterType = $(this).find('input[name="' + fieldName + '_filter_type"]:checked').val();
 
-            $('#exportForm').append(`<input type="hidden" name="selected_fields[]" value="${fieldName}">`);
-            $('#exportForm').append(`<input type="hidden" name="${fieldName}_option" value="${fieldOption}">`);
+            // Append field name
+            $('#exportForm').append($('<input>').attr({
+                type: 'hidden',
+                name: 'selected_fields[]',
+                value: fieldName
+            }));
 
-            if (operator) {
-                $('#exportForm').append(`<input type="hidden" name="${fieldName}_operator" value="${operator}">`);
-                $('#exportForm').append(`<input type="hidden" name="${fieldName}_value" value="${value}">`);
-            }
-            if (from && to) {
-                $('#exportForm').append(`<input type="hidden" name="${fieldName}_from" value="${from}">`);
-                $('#exportForm').append(`<input type="hidden" name="${fieldName}_to" value="${to}">`);
+            // Check if a filter option is selected (excluding 'no_filter')
+            if (filterType !== 'no_filter') {
+                var operator = $(this).find('select[name="' + fieldName + '_operator"]').val();
+                var value = $(this).find('input[name="' + fieldName + '_value"]').val();
+                var from = $(this).find('input[name="' + fieldName + '_from"]').val();
+                var to = $(this).find('input[name="' + fieldName + '_to"]').val();
+
+                // Append filter details
+                $('#exportForm').append($('<input>').attr({
+                    type: 'hidden',
+                    name: fieldName + '_filter_type',
+                    value: filterType
+                }));
+
+                if (operator) {
+                    $('#exportForm').append($('<input>').attr({
+                        type: 'hidden',
+                        name: fieldName + '_operator',
+                        value: operator
+                    }));
+
+                    $('#exportForm').append($('<input>').attr({
+                        type: 'hidden',
+                        name: fieldName + '_value',
+                        value: value
+                    }));
+                }
+
+                if (from && to) {
+                    $('#exportForm').append($('<input>').attr({
+                        type: 'hidden',
+                        name: fieldName + '_from',
+                        value: from
+                    }));
+
+                    $('#exportForm').append($('<input>').attr({
+                        type: 'hidden',
+                        name: fieldName + '_to',
+                        value: to
+                    }));
+                }
             }
         });
+        var formData = $('#exportForm').serialize();
 
-        $('#exportForm').submit();
+        $.ajax({
+            url: "{{ route('admin.export') }}",
+            type: 'POST',
+            data: formData,
+            xhrFields: {
+                responseType: 'blob'
+            },
+            success: function(response) {
+                var blob = new Blob([response], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                var link = document.createElement('a');
+                link.href = window.URL.createObjectURL(blob);
+                link.download = 'export.xlsx';
+                link.click();
+            },
+            error: function(xhr, status, error) {
+                toastr.error('Error during export: ' + error);
+                console.error("Error: " + error);
+                console.error("Status: " + status);
+                console.error("Response: " + xhr.responseText);
+            }
+        });
     });
+
+    $('#fieldsTable').on('change', 'input[type="radio"][name$="_filter_type"]', function() {
+        var tr = $(this).closest('tr');
+        var selectedFilterType = $(this).val();
+        var operatorInputs = tr.find('.operatorInputs');
+        var rangeInputs = tr.find('.rangeInputs');
+        var customFilter = tr.find('.customFilter');
+
+        // Reset inputs when no filter is selected
+        if (selectedFilterType === 'no_filter') {
+            customFilter.addClass('invisible');
+            operatorInputs.hide();
+            rangeInputs.hide();
+            tr.find('input[type="text"], input[type="number"], select').val(''); // Clear values
+        } else if (selectedFilterType === 'range_based') {
+            customFilter.removeClass('invisible').addClass('visible');
+            operatorInputs.hide();
+            rangeInputs.show();
+        } else if (selectedFilterType === 'operator_based') {
+            customFilter.removeClass('invisible').addClass('visible');
+            operatorInputs.show();
+            rangeInputs.hide();
+        }
+    });
+
+    // ____________________________End Export Custom______________________________ //
 
     var quickExportFilters = {};
     
@@ -692,18 +923,14 @@ $(document).ready(function() {
             },
             dataType: 'json',
             success: function(response) {
-                var tableHtml = '<div class="table-responsive" style="max-height: 400px; overflow-y: auto; overflow-x: auto;"><table class="table table-bordered"><thead><tr>';
-
-                // Generate column headers for all columns
+                var tableHtml = '<div class="table-responsive"><table class="table table-bordered"><thead><tr>';
                 if (response.length > 0) {
                     var firstItem = response[0];
                     for (var column in firstItem) {
                         tableHtml += `<th>${column.replace(/_/g, ' ').toUpperCase()}</th>`;
                     }
                 }
-
                 tableHtml += '</tr></thead><tbody>';
-
                 response.forEach(function(item) {
                     tableHtml += '<tr>';
                     for (var column in item) {
@@ -711,9 +938,7 @@ $(document).ready(function() {
                     }
                     tableHtml += '</tr>';
                 });
-
                 tableHtml += '</tbody></table></div>';
-
                 $('#dynamicExcelPreviewModal .modal-body').html(tableHtml);
                 $('#dynamicExcelPreviewModal').modal('show');
             },
@@ -727,62 +952,150 @@ $(document).ready(function() {
         $('input[name="quickExportOption"][type="hidden"]').val(quickExportOption);
     });
 
-    $('#btnQuickExport').click(function(event) {
-    event.preventDefault(); // Prevent the default form submission behavior
+    // $('#btnQuickExport').click(function(event) {
+    //     event.preventDefault(); // Prevent the default form submission behavior
 
-    console.log('quickExportFilters:', quickExportFilters);
+    //     var quickExportOption = $('input[name="quickExportOption"]:checked').val() || 'default';
+    //     console.log('quickExportFilters:', quickExportFilters);
 
-    var selectedFieldNames = [];
-    if ($('input[name="quickExportOption"]:checked').val() === 'custom') {
+    //     var selectedFieldNames = [];
+    //     $('#quickFieldsTable tbody tr').each(function() {
+    //         var fieldName = $(this).find('td[data-field-name]').data('field-name');
+    //         if (fieldName) {
+    //             selectedFieldNames.push(fieldName);
+    //             var fieldOption = $(this).find('input[name="' + fieldName + '_filter_type"]:checked').val();
+    //             var operator = $(this).find('select[name="' + fieldName + '_operator"]').val();
+    //             var value = $(this).find('input[name="' + fieldName + '_value"]').val();
+    //             var from = $(this).find('input[id="' + fieldName + '_from"]').val();
+    //             var to = $(this).find('input[id="' + fieldName + '_to"]').val();
+
+    //             quickExportFilters[fieldName] = { fieldOption, operator, value, from, to };
+    //         }
+    //     });
+
+    //     if (selectedFieldNames.length === 0) {
+    //         toastr.error('No fields selected for custom export.');
+    //         return;
+    //     }
+
+    //     if (quickExportOption === 'custom') {
+    //         // Send AJAX request for custom quick export
+    //         // Send AJAX request for custom quick export
+    //         $.ajax({
+    //             url: "{{ route('admin.export') }}",
+    //             type: 'POST',
+    //             data: JSON.stringify({
+    //                 _token: $('meta[name="csrf-token"]').attr('content'),
+    //                 export_type: 'quick',
+    //                 quickExportOption: quickExportOption,
+    //                 selected_fields: selectedFieldNames, // Ensure this is correctly populated
+    //                 filters: quickExportFilters
+    //             }),
+    //             contentType: "application/json",
+    //             xhrFields: {
+    //                 responseType: 'blob'
+    //             },
+    //             success: function(response) {
+    //                 var blob = new Blob([response]);
+    //                 var link = document.createElement('a');
+    //                 link.href = window.URL.createObjectURL(blob);
+    //                 link.download = 'loans_quick_custom_export.xlsx';
+    //                 link.click();
+    //             },
+    //             error: function(xhr, status, error) {
+    //                 toastr.error('An error occurred while processing the export: ' + error);
+    //             }
+    //         });
+    //     } 
+    //     // else {
+    //     //     // Send AJAX request for default quick export
+    //     //     $.ajax({
+    //     //         url: "{{ route('admin.export') }}",
+    //     //         type: 'POST',
+    //     //         data: {
+    //     //             export_type: 'quick',
+    //     //             quickExportOption: quickExportOption,
+    //     //             selected_fields: selectedFieldNames, // Ensure this is correctly populated
+    //     //             _token: $('meta[name="csrf-token"]').attr('content')
+    //     //         },
+    //     //         contentType: "application/json",
+    //     //         xhrFields: {
+    //     //             responseType: 'blob'
+    //     //         },
+    //     //         success: function(response) {
+    //     //             var blob = new Blob([response]);
+    //     //             var link = document.createElement('a');
+    //     //             link.href = window.URL.createObjectURL(blob);
+    //     //             link.download = 'loans_quick_default_export.xlsx';
+    //     //             link.click();
+    //     //         },
+    //     //         error: function() {
+    //     //             toastr.error('An error occurred while processing the export.');
+    //     //         }
+    //     //     });
+    //     // }
+    // });
+
+    $('.visibleExportBtn').click(function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        var quickExportOption = $('input[name="quickExportOption"]:checked').val();
+        // console.log('Export Option:', quickExportOption);
+        // console.log('Number of fields:', $('#quickFieldsTable tbody tr').length);
+
+        if (quickExportOption === 'custom' && !$('#quickFieldsTable tbody tr').length) {
+            toastr.error('No fields selected for custom export.');
+            return;
+        }
+
+        var selectedFieldNames = $('#quickFieldsTable tbody tr').map(function() {
+            return $(this).find('td[data-field-name]').data('field-name');
+        }).get();
+
+        var quickExportFilters = {};
+
+        
+        var exportData = {
+            _token: $('meta[name="csrf-token"]').attr('content'),
+            export_type: 'quick',
+            quickExportOption: quickExportOption,
+            selected_fields: selectedFieldNames,
+            filters: {}
+        };
+
         $('#quickFieldsTable tbody tr').each(function() {
             var fieldName = $(this).find('td[data-field-name]').data('field-name');
-            if (fieldName) {
-                selectedFieldNames.push(fieldName);
+            var filterType = $(this).find('input[name="' + fieldName + '_filter_type"]:checked').val();
+
+            if (fieldName === 'loan_type' || fieldName === 'remarks' || fieldName === 'application_status') {
+                var value = $(this).find('select[name="' + fieldName + '_value"]').val();
+                exportData.filters[fieldName] = {
+                    value: value
+                };
+            } else if (filterType !== 'no_filter') {
+                var operator = $(this).find('select[name="' + fieldName + '_operator"]').val();
+                var value = $(this).find('input[name="' + fieldName + '_value"]').val();
+                var from = $(this).find('input[id="' + fieldName + '_from"]').val();
+                var to = $(this).find('input[id="' + fieldName + '_to"]').val();
+
+                exportData.filters[fieldName] = {
+                    fieldOption: filterType,
+                    operator: operator,
+                    value: value,
+                    from: from,
+                    to: to
+                };
             }
-
-            var fieldOption = $(this).find('input[name="' + fieldName + '_filter_type"]:checked').val();
-            var operator = $(this).find('select[name="' + fieldName + '_operator"]').val();
-            var value = $(this).find('input[name="' + fieldName + '_value"]').val();
-            var from = $(this).find('input[id="' + fieldName + '_from"]').val();
-            var to = $(this).find('input[id="' + fieldName + '_to"]').val();
-
-            quickExportFilters[fieldName] = { fieldOption, operator, value, from, to };
         });
 
-        // Send AJAX request for custom quick export
+        // console.log('Export Data:', exportData);
+
         $.ajax({
             url: "{{ route('admin.export') }}",
             type: 'POST',
-            data: {
-                export_type: 'quick',
-                quickExportOption: 'custom',
-                filters: quickExportFilters,
-                _token: $('meta[name="csrf-token"]').attr('content')
-            },
-            xhrFields: {
-                responseType: 'blob'
-            },
-            success: function(response) {
-                var blob = new Blob([response]);
-                var link = document.createElement('a');
-                link.href = window.URL.createObjectURL(blob);
-                link.download = 'loans_quick_custom_exportss.xlsx';
-                link.click();
-            },
-            error: function() {
-                toastr.error('An error occurred while processing the export.');
-            }
-        });
-    } else {
-        // Send AJAX request for default quick export
-        $.ajax({
-            url: "{{ route('admin.export') }}",
-            type: 'POST',
-            data: {
-                export_type: 'quick',
-                quickExportOption: 'default',
-                _token: $('meta[name="csrf-token"]').attr('content')
-            },
+            data: JSON.stringify(exportData),
+            contentType: "application/json",
             xhrFields: {
                 responseType: 'blob'
             },
@@ -793,69 +1106,77 @@ $(document).ready(function() {
                 link.download = 'loans_quick_custom_export.xlsx';
                 link.click();
             },
-            error: function() {
-                toastr.error('An error occurred while processing the export.');
+            error: function(xhr, status, error) {
+                toastr.error('An error occurred while processing the export: ' + error);
             }
         });
-    }
-});
-
-$('#dynamicExcelPreviewBtn').click(function(event) {
-    event.preventDefault();
-
-    var filters = {};
-    var selectedFieldNames = [];
-
-    $('#fieldsTable tbody tr').each(function() {
-        var fieldName = $(this).find('td[data-field-name]').data('field-name');
-        var fieldOption = $(this).find('input[name="' + fieldName + '_option"]:checked').val();
-        var operator = $(this).find('select[name="' + fieldName + '_operator"]').val();
-        var value = $(this).find('input[name="' + fieldName + '_value"]').val() || $(this).find('select[name="' + fieldName + '_value"]').val(); // Adjusted to support combobox
-        var from = $(this).find('input[id="' + fieldName + '_from"]').val();
-        var to = $(this).find('input[id="' + fieldName + '_to"]').val();
-
-        // Populate the filters object for AJAX request
-        filters[fieldName] = { fieldOption, operator, value, from, to };
-
-        // Append selected field names for table headers
-        selectedFieldNames.push(fieldName);
     });
 
-    $.ajax({
-        url: '/admin/fetch-filtered-data',
-        type: 'POST',
-        data: { filters: filters }, // Now sending the populated filters object
-        headers: {
-            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-        },
-        success: function(response) {
-            console.log(response);
-            var tableHtml = '<table class="table table-bordered"><thead><tr>';
+    $('#btnQuickExport').click(function(event) {
+        event.preventDefault(); // Prevent form submission
+        var quickExportOption = $('input[name="quickExportOption"]:checked').val() || 'default';
 
-            selectedFieldNames.forEach(function(fieldName) {
-                tableHtml += `<th>${fieldName.replace(/_/g, ' ').toUpperCase()}</th>`;
-            });
+        console.log('Export Option:', quickExportOption); // Debugging log
+        console.log('Number of fields:', $('#quickFieldsTable tbody tr').length); // Debugging log
 
-            tableHtml += '</tr></thead><tbody>';
-
-            response.forEach(function(item) {
-                tableHtml += '<tr>';
-                selectedFieldNames.forEach(function(fieldName) {
-                    tableHtml += `<td>${item[fieldName] || ''}</td>`;
-                });
-                tableHtml += '</tr>';
-            });
-
-            tableHtml += '</tbody></table>';
-
-            $('#dynamicExcelPreviewModal .modal-body').html(tableHtml);
-            $('#dynamicExcelPreviewModal').modal('show');
-        },
-        error: function(xhr, status, error) {
-            console.error("Error fetching data: ", error);
+        if (quickExportOption === 'custom' && !$('#quickFieldsTable tbody tr').length) {
+            toastr.error('No fields selected for custom export.');
+            console.log('Prevention triggered'); // Debugging log
+            return;
         }
+
+        // Prepare data for AJAX request
+        var exportData = {
+            _token: $('meta[name="csrf-token"]').attr('content'),
+            export_type: 'quick',
+            quickExportOption: quickExportOption
+        };
+
+        if (quickExportOption === 'custom') {
+            exportData.selected_fields = $('#quickFieldsTable tbody tr').map(function() {
+                return $(this).find('td[data-field-name]').data('field-name');
+            }).get();
+            exportData.filters = collectFilters();
+        }
+
+        console.log('Export Data:', exportData); // Debugging log
+
+        // Send AJAX request
+        $.ajax({
+            url: "{{ route('admin.export') }}",
+            type: 'POST',
+            data: JSON.stringify(exportData),
+            contentType: "application/json",
+            xhrFields: {
+                responseType: 'blob'
+            },
+            success: function(response) {
+                var blob = new Blob([response]);
+                var link = document.createElement('a');
+                link.href = window.URL.createObjectURL(blob);
+                link.download = 'export.xlsx'; // Adjust the filename as needed
+                link.click();
+            },
+            error: function(xhr, status, error) {
+                toastr.error('An error occurred while processing the export: ' + error);
+            }
+        });
     });
-});
+
+    function collectFilters() {
+        var filters = {};
+        $('#quickFieldsTable tbody tr').each(function() {
+            var fieldName = $(this).find('td[data-field-name]').data('field-name');
+            filters[fieldName] = {
+                fieldOption: $(this).find('input[name="' + fieldName + '_filter_type"]:checked').val(),
+                operator: $(this).find('select[name="' + fieldName + '_operator"]').val(),
+                value: $(this).find('input[name="' + fieldName + '_value"]').val(),
+                from: $(this).find('input[id="' + fieldName + '_from"]').val(),
+                to: $(this).find('input[id="' + fieldName + '_to"]').val()
+            };
+        });
+        return filters;
+    }
 });
 </script>
 @endsection

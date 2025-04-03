@@ -17,7 +17,6 @@ class User extends Authenticatable
     use SoftDeletes, Notifiable, HasFactory;
 
     public $table = 'users';
-
     protected $hidden = [
         'remember_token',
         'password',
@@ -25,6 +24,7 @@ class User extends Authenticatable
 
     protected $dates = [
         'email_verified_at',
+        'birth_date' => 'date',
         'created_at',
         'updated_at',
         'deleted_at',
@@ -39,6 +39,8 @@ class User extends Authenticatable
         'birth_date',
         'password',
         'remember_token',
+        'is_from_signup',
+        'is_share_paid',
         'created_at',
         'updated_at',
         'deleted_at',
@@ -93,6 +95,18 @@ class User extends Authenticatable
     public function payments()
     {
         return $this->hasMany(Payment::class, 'account_number_id');
+    }
+
+    public function sharePayments()
+    {
+        return $this->hasManyThrough(
+            SharePayment::class,
+            Payment::class,
+            'account_number_id',      // Foreign key on payments table
+            'payment_id',     // Foreign key on share_payments table
+            'id',             // Local key on users table
+            'id'              // Local key on payments table
+        );
     }
     public function transactions()
     {

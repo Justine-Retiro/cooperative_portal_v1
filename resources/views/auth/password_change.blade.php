@@ -25,7 +25,7 @@
                             <div class="alert alert-danger">
                                 <ul>
                                     @foreach ($errors->all() as $error)
-                                        <li>{{ $error }}</li>
+                                        <span>{{ $error }}</span>
                                     @endforeach
                                 </ul>
                             </div>
@@ -90,18 +90,23 @@ $(document).ready(function() {
     });
 
     // Check password match and complexity
-
     // Validate password on input
     $('#new_password, #confirm_new_password').on('input', checkPasswordMatch);
 
     // Form submission handler
     $('form').submit(function(event) {
+        var regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/;
+        if (!regex.test($('#new_password').val())) {
+            event.preventDefault(); // Prevent form submission if regex validation fails
+            toastr.error('New password does not meet the required criteria.');
+        }
         checkPasswordMatch(); // Ensure validation runs before form submission
         var formValid = this.checkValidity();
         if (!formValid) {
             event.preventDefault(); // Prevent form submission if validation fails
-            alert('Please correct the errors before submitting.');
+            toastr.error('Please correct the errors before submitting.');
         }
+
     });
 });
 </script>

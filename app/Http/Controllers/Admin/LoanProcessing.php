@@ -53,8 +53,13 @@ class LoanProcessing extends Controller
             $loanApplications = LoanApplication::whereHas('approvals', function ($query) {
                 $query->where('book_keeper', true);
             })->where('application_status', '!=', 'reject')->get();
+            $totalLoanApplicationsCount = LoanApplication::whereHas('approvals', function ($query) {
+                $query->where('book_keeper', false)
+                      ->orWhere('book_keeper', true)
+                      ->orWhere('general_manager', false);
+            })->count();
             // Calculate counts
-            $allCount = $loanApplications->count();
+            $allCount = $totalLoanApplicationsCount;
             $pendingCount = $pendingApplicationsQuery->count();
             $approvedCount = $loanApplications->where('application_status', 'approved')->count();
             $rejectedCount = $loanApplications->where('application_status', 'rejected')->count();
@@ -75,6 +80,8 @@ class LoanProcessing extends Controller
         $searchQuery = $request->query('search', '');
         $sort = $request->query('sort', 'desc'); // Capture the sort option
         $countQuery = clone $query;
+        // Initialize $pendingApplicationsQuery with a default value
+        $pendingApplicationsQuery = LoanApplication::where('id', '=', 0); // This will match no records by default
 
         // Apply initial permission and status filters
         if ($user->hasPermission(1)) {
@@ -82,7 +89,7 @@ class LoanProcessing extends Controller
                 $query->where('book_keeper', true);
             });
             $countQuery = clone $query; // Clone after applying filters for accurate counts
-
+    
             if ($status !== 'all') {
                 $query->where('application_status', $status);
                 $countQuery->where('application_status', $status);
@@ -102,6 +109,12 @@ class LoanProcessing extends Controller
                     })->orWhereHas('approvals', function ($subQuery) {
                         $subQuery->where('book_keeper', true)
                                  ->where('general_manager', false);
+                    })->orWhere(function ($subQuery) {
+                        // This includes applications where neither book_keeper nor general_manager has approved
+                        $subQuery->whereHas('approvals', function ($approvalQuery) {
+                            $approvalQuery->where('book_keeper', false)
+                                          ->where('general_manager', false);
+                        });
                     });
                 });
                 $countQuery = clone $query; // Clone after applying filters for accurate counts
@@ -151,8 +164,9 @@ class LoanProcessing extends Controller
             $loanApplications = LoanApplication::whereHas('approvals', function ($query) {
                 $query->where('book_keeper', true);
             })->where('application_status', '!=', 'reject')->get();
+            $totalLoanApplicationsCount = LoanApplication::count(); 
             // Calculate counts
-            $allCount = $loanApplications->count();
+            $allCount = $totalLoanApplicationsCount;
             $pendingCount = $pendingApplicationsQuery->count();
             $approvedCount = $loanApplications->where('application_status', 'approved')->count();
             $rejectedCount = $loanApplications->where('application_status', 'rejected')->count();
@@ -185,10 +199,18 @@ class LoanProcessing extends Controller
         // Pagination Setting
         $loanApplications = $query->paginate(20);
 
-        $allCount = $loanApplications->count();
-        $pendingCount = $pendingApplicationsQuery->count();
-        $approvedCount = $loanApplications->where('application_status', 'approved')->count();
-        $rejectedCount = $loanApplications->where('application_status', 'rejected')->count();
+        if (empty($searchQuery)) {
+            $allCount = $loanApplications->count();
+            $pendingCount = $pendingApplicationsQuery->count();
+            $approvedCount = $loanApplications->where('application_status', 'approved')->count();
+            $rejectedCount = $loanApplications->where('application_status', 'rejected')->count();
+        } else {
+            $allCount = $countQuery->count();
+            $pendingCount = $countQuery->where('application_status', 'pending')->count();
+            $approvedCount = $countQuery->where('application_status', 'approved')->count();
+            $rejectedCount = $countQuery->where('application_status', 'rejected')->count();
+        }
+        
         // Now, calculate counts based on $countQuery with all conditions applied
         $counts = [
             'all' => $allCount,
@@ -247,12 +269,13 @@ class LoanProcessing extends Controller
             $query->orderBy($sortColumn, $direction);
         }
 
-        $pastLoanApplications = $query->paginate(5);
+        // $pastLoanApplications = $query->paginate(5);
+        $pastLoanApplications = $query->get();
 
         try {
             $mediaItems = $currentLoanApplication->mediaItems()->where('loan_id', $currentLoanApplication->id)->get();
         } catch (\Exception $e) {
-            Log::error("Error fetching media items: " . $e->getMessage());
+            // Log::error("Error fetching media items: " . $e->getMessage());
         }
 
         if ($request->ajax()) {
@@ -268,124 +291,149 @@ class LoanProcessing extends Controller
 
     public function approveByLevel3(Request $request, $loanReference)
     {
-        $loanApplication = LoanApplication::where('loan_reference', $loanReference)->firstOrFail();
-        $user = auth()->user();
+        try {
+            $loanApplication = LoanApplication::where('loan_reference', $loanReference)->firstOrFail();
+            $user = auth()->user();
 
-        if ($user->hasPermission(3)) {
-            $transaction = new TransactionHistory();
-            $transaction->audit_description = 'Loan Application Response';
-            $transaction->transaction_type = 'Loan Application';
-            $transaction->transaction_status = 'Approved';
-            $transaction->transaction_date = now()->setTimezone('Asia/Manila');
-            $transaction->account_number_id = $loanApplication->account_number_id;
-            $transaction->loan_application_id = $loanApplication->id;
-            $transaction->currently_assigned_id = auth()->id();
-            $transaction->save();
-            LoanApplicationApprovals::where('loan_id', $loanApplication->id)->update(['book_keeper' => true]);
+            if ($user->hasPermission(3)) {
+                $transaction = new TransactionHistory();
+                $transaction->audit_description = 'Loan Application Response Initial Approval';
+                $transaction->transaction_type = 'Loan Application';
+                $transaction->transaction_status = 'Approved';
+                $transaction->transaction_date = now()->setTimezone('Asia/Manila');
+                $transaction->account_number_id = $loanApplication->account_number_id;
+                $transaction->loan_application_id = $loanApplication->id;
+                $transaction->currently_assigned_id = auth()->id();
+                $transaction->save();
+                LoanApplicationApprovals::where('loan_id', $loanApplication->id)->update(['book_keeper' => true]);
 
-            Mail::to($loanApplication->user->email)->send(new LoanVerdict($loanApplication, 'approvedByLevel3'));
-            return redirect()->back()->with('message', 'Application approved successfully.');
-        } else {
-            return redirect()->back()->with('error', 'Unauthorized action.');
+                Mail::to($loanApplication->user->email)->send(new LoanVerdict($loanApplication, 'approvedByLevel3'));
+                return redirect()->back()->with('message', 'Application approved successfully.');
+            } else {
+                return redirect()->back()->with('error', 'Unauthorized action.');
+            }
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Failed to process the approval: ' . $e->getMessage());
         }
     }
 
     public function rejectByLevel3(Request $request, $loanReference)
     {
-        $loanApplication = LoanApplication::where('loan_reference', $loanReference)->firstOrFail();
-        $user = auth()->user();
-        $note = $request->input('note');
-        if ($user->hasPermission(3)) {
-            $loanApplication->note = $note;
-            $loanApplication->update(['application_status' => 'rejected']);
-            $loanApplication->save();
+        try {
+            $loanApplication = LoanApplication::where('loan_reference', $loanReference)->firstOrFail();
+            $user = auth()->user();
+            $validatedData = $request->validate([
+                'note' => 'required|string|max:255',
+            ]);
+            $note = $validatedData['note'];
+            if ($user->hasPermission(3)) {
+                $loanApplication->note = $note;
+                $loanApplication->update(['application_status' => 'rejected']);
+                $loanApplication->updated_at = now()->setTimezone('Asia/Manila');
+                $loanApplication->save();
 
-            $transaction = new TransactionHistory();
-            $transaction->audit_description = 'Loan Application Response';
-            $transaction->transaction_type = 'Loan Application';
-            $transaction->transaction_status = 'Rejected';
-            $transaction->transaction_date = now()->setTimezone('Asia/Manila');
-            $transaction->account_number_id = $loanApplication->account_number_id;
-            $transaction->loan_application_id = $loanApplication->id;
-            $transaction->currently_assigned_id = auth()->id();
-            $transaction->save();
-            LoanApplicationApprovals::where('loan_id', $loanApplication->id)->update(['book_keeper' => true]);
-            Mail::to($loanApplication->user->email)->send(new LoanVerdict($loanApplication, 'rejectedByLevel3'));
-            return redirect()->back()->with('message', 'Application rejected successfully.');
-        } else {
-            return redirect()->back()->with('error', 'Unauthorized action.');
+                $transaction = new TransactionHistory();
+                $transaction->audit_description = 'Loan Application Response Rejected';
+                $transaction->transaction_type = 'Loan Application';
+                $transaction->transaction_status = 'Rejected';
+                $transaction->transaction_date = now()->setTimezone('Asia/Manila');
+                $transaction->account_number_id = $loanApplication->account_number_id;
+                $transaction->loan_application_id = $loanApplication->id;
+                $transaction->currently_assigned_id = auth()->id();
+                $transaction->save();
+                LoanApplicationApprovals::where('loan_id', $loanApplication->id)->update(['book_keeper' => true]);
+                Mail::to($loanApplication->user->email)->send(new LoanVerdict($loanApplication, 'rejectedByLevel3'));
+                return redirect()->back()->with('message', 'Application rejected successfully.');
+            } else {
+                return redirect()->back()->with('error', 'Unauthorized action.');
+            }
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Failed to process loan rejection.');
         }
     }
 
     public function finalAcceptance(Request $request, $loanReference)
     {
-        $loanApplication = LoanApplication::where('loan_reference', $loanReference)->firstOrFail();
-        $client = Client::where('id', $loanApplication->client_id)->first();
-        $note = $request->input('note');
-        $due_date = $request->input('due_date');
-        $user = auth()->user();
+        try {
+            $loanApplication = LoanApplication::where('loan_reference', $loanReference)->firstOrFail();
+            $client = Client::where('id', $loanApplication->client_id)->first();
+            $validatedData = $request->validate([
+                'note' => 'nullable|string|max:255',
+            ]);
+            $note = $validatedData['note'];
+            $due_date = $request->input('due_date');
+            $user = auth()->user();
 
-        if ($user->hasPermission(1)) {
-            $loanApplication->update(['application_status' => 'approved']);
-            $loanApplication->update(['remarks' => 'unpaid']);
-            $loanApplication->due_date = $due_date;
-            $loanApplication->note = $note;
-            $loanApplication->update(['balance' => $loanApplication->finance_charge]);
-            $loanApplication->save();
+            if ($user->hasPermission(1)) {
+                $loanApplication->update([
+                    'application_status' => 'approved',
+                    'remarks' => 'unpaid',
+                    'due_date' => $due_date,
+                    'note' => $note,
+                    'balance' => $loanApplication->finance_charge
+                ]);
+                $loanApplication->save();
 
+                $transaction = new TransactionHistory();
+                $transaction->audit_description = 'Loan Application Response Final Approval';
+                $transaction->transaction_type = 'Loan Application';
+                $transaction->transaction_status = 'Approved';
+                $transaction->transaction_date = now()->setTimezone('Asia/Manila');
+                $transaction->account_number_id = $loanApplication->account_number_id;
+                $transaction->loan_application_id = $loanApplication->id;
+                $transaction->currently_assigned_id = auth()->id();
+                $transaction->save();
+                if ($client) { 
+                    $client->balance += $loanApplication->finance_charge;
+                    $client->update(['remarks' => 'unpaid']);
+                    $client->save();
+                }
+                LoanApplicationApprovals::where('loan_id', $loanApplication->id)->update(['general_manager' => true]);
 
-            $transaction = new TransactionHistory();
-            $transaction->audit_description = 'Loan Application Response';
-            $transaction->transaction_type = 'Loan Application';
-            $transaction->transaction_status = 'Approved';
-            $transaction->transaction_date = now()->setTimezone('Asia/Manila');
-            $transaction->account_number_id = $loanApplication->account_number_id;
-            $transaction->loan_application_id = $loanApplication->id;
-            $transaction->currently_assigned_id = auth()->id();
-            $transaction->save();
-            if ($client) { 
-                $client->balance = $client->balance + $loanApplication->finance_charge;
-                $client->update(['remarks' => 'unpaid']);
-                $client->save();
+                Mail::to($loanApplication->user->email)->send(new LoanVerdict($loanApplication, 'approvedByLevel1'));
+                return redirect()->back()->with('message', 'Final acceptance successful.');
+            } else {
+                return redirect()->back()->with('error', 'Unauthorized action or invalid application status.');
             }
-            LoanApplicationApprovals::where('loan_id', $loanApplication->id)->update(['general_manager' => true]);
-
-            Mail::to($loanApplication->user->email)->send(new LoanVerdict($loanApplication, 'approvedByLevel1'));
-            return redirect()->back()->with('message', 'Final acceptance successful.');
-        } else {
-            return redirect()->back()->with('error', 'Unauthorized action or invalid application status.');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Failed to process final acceptance: ' . $e->getMessage());
         }
     }
 
     public function rejectByLevel1(Request $request, $loanReference)
     {
-        $action = new LoanApplicationApprovals;
-        $loanApplication = LoanApplication::where('loan_reference', $loanReference)->firstOrFail();
-        $user = auth()->user();
+        try {
+            $loanApplication = LoanApplication::where('loan_reference', $loanReference)->firstOrFail();
+            $user = auth()->user();
+            $validatedData = $request->validate([
+                'note' => 'required|string|max:255',
+            ]);
+            $note = $validatedData['note'];
 
-        $note = $request->input('note');
+            if ($user->hasPermission(1)) {
+                $loanApplication->note = $note;
+                $loanApplication->update(['application_status' => 'rejected']);
+                $loanApplication->save();
 
-        if ($user->hasPermission(1)) {
-            $loanApplication->note = $note;
-            $loanApplication->update(['application_status' => 'rejected']);
-            $loanApplication->save();
+                $transaction = new TransactionHistory();
+                $transaction->audit_description = 'Loan Application Response Rejected';
+                $transaction->transaction_type = 'Loan Application';
+                $transaction->transaction_status = 'Rejected';
+                $transaction->transaction_date = now()->setTimezone('Asia/Manila');
+                $transaction->account_number_id = $loanApplication->account_number_id;
+                $transaction->loan_application_id = $loanApplication->id;
+                $transaction->currently_assigned_id = auth()->id();
+                $transaction->save();
+                LoanApplicationApprovals::where('loan_id', $loanApplication->id)->update(['general_manager' => true]);
 
-            $transaction = new TransactionHistory();
-            $transaction->audit_description = 'Loan Application Response';
-            $transaction->transaction_type = 'Loan Application';
-            $transaction->transaction_status = 'Rejected';
-            $transaction->transaction_date = now()->setTimezone('Asia/Manila');
-            $transaction->account_number_id = $loanApplication->account_number_id;
-            $transaction->loan_application_id = $loanApplication->id;
-            $transaction->currently_assigned_id = auth()->id();
-            $transaction->save();
-            LoanApplicationApprovals::where('loan_id', $loanApplication->id)->update(['general_manager' => true]);
+                Mail::to($loanApplication->user->email)->send(new LoanVerdict($loanApplication, 'rejectedByLevel1'));
 
-            Mail::to($loanApplication->user->email)->send(new LoanVerdict($loanApplication, 'rejectedByLevel1'));
-
-            return redirect()->back()->with('message', 'Application rejected successfully.');
-        } else {
-            return redirect()->back()->with('error', 'Unauthorized action or invalid application status.');
+                return redirect()->back()->with('message', 'Application rejected successfully.');
+            } else {
+                return redirect()->back()->with('error', 'Unauthorized action or invalid application status.');
+            }
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Failed to reject application.');
         }
     }
 }

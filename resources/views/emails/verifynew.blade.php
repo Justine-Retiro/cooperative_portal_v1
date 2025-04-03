@@ -6,67 +6,38 @@
     <title>Email Verification</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
-    <style>
-    #header{
-        border-bottom: 1px solid #CCCCCC;
-    }
-    table, th, td {
-            border: none;
-        }
-    @media (max-width: 768px) {
-        .card {
-            width: 90% !important; /* Adjust card width on smaller screens */
-        }
-        .img-fluid {
-            max-width: 80px; /* Adjust logo size on smaller screens */
-            height: auto;
-        }
-        h2 {
-            font-size: 16px; /* Adjust heading size on smaller screens */
-        }
-        .btn-lg {
-            padding: .5rem 1rem; /* Adjust button size on smaller screens */
-            font-size: .875rem;
-        }
-    }
-    </style>
 </head>
 <body>
-    <div class="container py-3">
-        <div class="card text-center mx-auto" style="width: 50%;">
-            <div class="card-body">
-                <div class="">
-                    
-                </div>
-                <table class="table">
-                    <tbody>
-                        <tr id="header">
-                            <td colspan="2" class="text-start d-flex align-items-center gap-3"><h2>Email Verification</h2></td>
+    <div style="font-family: Arial, sans-serif; font-size: 14px; color: #333;">
+        <table role="presentation" style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="background: #ffffff; padding: 20px;">
+                    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 10px; text-align: center; font-size: 24px;">Code Verification</td>
                         </tr>
                         <tr>
-                            <td colspan="2" class="text-start">
-                                <p class="mb-0">Hello, {{ $name }}</p>
-                                <p class="mb-0">Please complete the email change process for the Cooperative Portal by entering the code provided below:</p>
-                                <div class="text-center d-flex flex-column justify-content-center w-auto my-4">
-                                    <div class="d-flex justify-content-center mb-3">
-                                        <span class="border p-3 fs-1 w-auto">{{ $verificationCode }}</span>
-                                    </div>
-                                </div>
-                                <p class="mb-0">If you did not request this, no further action is required.</p>
-                                <p class="mb-0">Best Regards,<br>Credit Cooperative Partners</p>
+                            <td style="padding: 10px; text-align: left;">
+                                <p>Hello, {{ $name }}</p>
+                                <p>Please complete the email change process for the Cooperative Portal by entering the code provided below:</p>
+                                <p style="text-align: center; border-radius: 5px; font-size: 18px; border: 1px solid #ccc; padding: 10px;">{{ $verificationCode }}</p>
+                                <br>
+                                <p>If you did not request this, no further action is required.</p>
+                                <p>Best Regards,<br>Credit Cooperative Partners</p>
                             </td>
                         </tr>
-                    </tbody>
-                </table>
-                <hr>
-            <div class="text-start mt-4">
-                <small class="text-muted">This message was sent to <a href="mailto:{{ $email }}">{{ $email }}</a> and intended for {{ $name }}. <br>If you have questions or complaints, please contact us.</small>
-                <br>
-                <small class="text-muted">© {{ date('Y') }} Credit Cooperative Partners. All rights reserved.</small>
-            </div>
-        </div>
+                    </table>
+                </td>
+            </tr>
+        </table>
+        <p style="font-size: 12px; color: #666; text-align: center;">
+            This message was sent to <a href="mailto:{{ $email }}">{{ $email }}</a> and intended for {{ $name }}.<br>
+            If you have questions or complaints, please contact us.<br>
+            © {{ date('Y') }} Credit Cooperative Partners. All rights reserved.
+        </p>
     </div>
     <!-- Bootstrap Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+

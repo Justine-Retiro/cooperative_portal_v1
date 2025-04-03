@@ -53,7 +53,7 @@ $(document).ready(function() {
 
     var timer;
     // var countdown = 120; // Set the initial countdown value in seconds
-    var countdown = 60; // Set the initial countdown value in seconds
+    var countdown = 350; // Set the initial countdown value in seconds
 
     startResendTimer(); // Start the resend timer on page load
 
@@ -80,7 +80,7 @@ $(document).ready(function() {
     });
 
     function startResendTimer() {
-        countdown = 60; // Reset the countdown
+        countdown = 350; // Reset the countdown
 
         // countdown = 120; // Reset the countdown
         $('#resend_code').text('Resend in ' + countdown + 's').prop('disabled', true).css('pointer-events', 'pointer');

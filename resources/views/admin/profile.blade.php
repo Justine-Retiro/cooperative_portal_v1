@@ -29,11 +29,21 @@
                     <!-- Row 1 -->
                         <div class="row mb-3">
                             <div class="col-lg-4">
-                                <label for="lastName">Name</label>
-                                <input type="text" class="form-control" name="name" id="name" value="{{ $user->name }}" >
+                                <label for="lastName" class="fw-medium">Name</label>
+                                <input type="text" class="form-control" name="name" id="name" value="{{ $user->name }}" maxlength="25" required>
+                                
+                            </div>
+                            <div class="col-lg-4">
+                                <label for="birthdate" class="fw-medium">Birthdate</label>
+                                <input type="date" class="form-control" name="birthdate" id="birthdate" value="{{ $user->birth_date ? (new DateTime($user->birth_date))->format('Y-m-d') : old('birth_date') }}">                                
+                            </div>
+                            <div class="col-lg-12">
+                                <button class="btn btn-success mt-3 float-end" type="submit">Confirm</button>
                             </div>
                         </div>
+                        
                     </div>
+                    
                   </form>
                     <h3>Email</h3>
                     <hr>
@@ -45,23 +55,23 @@
                                 <div class="">
                                     <div class="row w-auto">
                                         <div class="col-lg-12 mb-3">
-                                            <label for="email">New Email</label>
-                                            <input type="email" class="form-control email-input" name="email" id="email" >
+                                            <label for="email" class="fw-medium">New Email</label>
+                                            <input type="email" class="form-control email-input" name="email" id="email" required>
                                         </div>
                                     </div>
                                 </div>
                                <div class="">
                                     <div class="row w-auto">
                                         <div class="col-lg-12 mb-3">
-                                            <label for="confirm_email">Confirm Email</label>
-                                            <input type="email" class="form-control email-input" name="confirm_email" id="confirm_email">
+                                            <label for="confirm_email" class="fw-medium">Confirm Email</label>
+                                            <input type="email" class="form-control email-input" name="confirm_email" id="confirm_email" required>
                                         </div>
                                     </div>
                                </div>
                                 <div class="">
                                     <div class="row w-auto">
                                         <div class="w-100 mb-3">
-                                            <label for="current_password">Current Password</label>
+                                            <label for="current_password" class="fw-medium">Current Password</label>
                                             <input type="password" class="form-control" name="current_password" id="current_password_email">
                                             <div class="invalid-feedback"></div>
                                         </div>
@@ -88,7 +98,7 @@
                             </div>
                             <div class="col-lg-4 ">
                                 <div class="w-auto mb-3">
-                                    <div >Current email: <div class="text-success">{{ $user->email }}</div></div>
+                                    <div><span class="fw-medium">Current email:</span><div class="text-success">{{ $user->email }}</div></div>
                                 </div>
                             </div>
                             
@@ -109,17 +119,17 @@
                             <div class="row w-auto">
                                 <input type="hidden" name="account_number" value=" ">
                                 <div class="col-lg-12 mb-3">
-                                    <label for="current_password">Current Password</label>
+                                    <label for="current_password" class="fw-medium">Current Password</label>
                                     <input type="password" class="form-control password-input" name="current_password" id="current_password">
                                 </div>
                                 <div class="col-lg-12 mb-3">
-                                    <label for="new_password">New Password</label>
+                                    <label for="new_password" class="fw-medium">New Password</label>
                                     <input type="password" class="form-control password-input" name="new_password" id="new_password">
                                 </div>
                             </div>
                             <div class="row w-auto">
                                 <div class="col-lg-12 mb-3">
-                                    <label for="confirm_password">Confirm Password</label>
+                                    <label for="confirm_password" class="fw-medium">Confirm Password</label>
                                     <input type="password" class="form-control password-input" name="confirm_password" id="confirm_password">
                                     <div class="invalid-feedback"></div> <!-- This will display the error message -->
                                 </div>
@@ -239,6 +249,22 @@ $(document).ready(function() {
             $('#confirm_password').attr('type', 'password');
         }
     });
+
+
+
+    $('input[type="text"]').on('input', function() {
+        var noNumbersOrSpecialCharsAllowed = ['#name'];
+
+        if (noNumbersOrSpecialCharsAllowed.includes('#' + $(this).attr('id'))) {
+            var originalValue = $(this).val();
+            var filteredValue = originalValue.replace(/[^a-zA-Z\s]/g, ''); // Allow only letters and spaces
+            $(this).val(filteredValue);
+            if (originalValue !== filteredValue) {
+                toastr.error('Numbers and special characters are not allowed.');
+            }
+        }
+    });
+
     @if(session('success'))
         toastr.success("{{ session('success') }}");
     @elseif (session('error'))
@@ -246,7 +272,7 @@ $(document).ready(function() {
     @endif
     
     var timer;
-    var countdown = 60;
+    var countdown = 350;
     startResendTimer();
 
     $('#resend_code').click(function() {
@@ -305,16 +331,20 @@ $(document).ready(function() {
     $('.password-input').on('input', function (){
         var password = $('#new_password').val();
         var confirmPassword = $('#confirm_password').val();
-        var passwordRegex = /^(?=.*[0-9])(?=.*[\W_]?)[a-zA-Z0-9\W_]{8,}$/;
-        // var regex = /^(?=.*[0-9])(?=.*[\W_]?)[a-zA-Z0-9\W_]{8,}$/;
-        if (password === confirmPassword) {
-            if (passwordRegex.test(password)) {
-                $('#alert_password').removeClass('d-none').show().removeClass('text-muted text-danger alert-danger').addClass('text-success alert-success').text('Password is matched!');
+        var passwordRegex = /^(?=.*[0-9])(?=.*[\W_])[a-zA-Z0-9\W_]{8,}$/;
+    
+        if (password && confirmPassword) {
+            if (password === confirmPassword) {
+                if (passwordRegex.test(password)) {
+                    $('#alert_password').removeClass('d-none alert-danger').addClass('alert-success').text('Password is matched and valid!');
+                } else {
+                    $('#alert_password').removeClass('d-none alert-success').addClass('alert-danger').text('Password must be at least 8 characters long and include at least one number and one special character.');
+                }
             } else {
-                $('#alert_password').removeClass('d-none').show().removeClass('text-muted text-success').addClass('text-danger').text('Password must be at least 8 characters long and include at least one special character.');
+                $('#alert_password').removeClass('d-none alert-success').addClass('alert-danger').text('Passwords do not match.');
             }
         } else {
-            $('#alert_container').removeClass('d-none').show().removeClass('text-muted text-success').addClass('text-danger').text('Passwords do not match.');
+            $('#alert_password').addClass('d-none').text('');
         }
     });
 
@@ -449,7 +479,7 @@ $(document).ready(function() {
         });
     });
     function startResendTimer() {
-        var countdown = 60;
+        var countdown = 350;
         $('#resend_code').text('Resend in ' + countdown + 's').prop('disabled', true).css('pointer-events', 'none');
 
         timer = setInterval(function() {

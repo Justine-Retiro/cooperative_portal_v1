@@ -16,6 +16,7 @@ class ProfileController extends Controller
 {
     public function index(){
         $user = auth()->user();
+
         $email = $user->email;
         return view('admin.profile', compact('user'));
     }
@@ -163,7 +164,7 @@ class ProfileController extends Controller
 
                 $user->save(); // Save the user model after making changes
 
-                return response()->json(['success' => true, 'message' => 'Code verification successful.']);
+                return response()->json(['success' => true, 'message' => 'Password changed successfully.']);
             } catch (\Exception $e) {
                 return response()->json(['status' => 'error', 'message' => $e->getMessage()]);
             }

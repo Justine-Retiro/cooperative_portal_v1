@@ -13,7 +13,7 @@
                 </div>
                 <hr>
                 <h1 class="card-title">Payment Confirmation</h1>
-                <p class="card-text">Dear Customer, {{ $name }}</p>
+                <p class="card-text">Dear {{ $name }},</p>
                 <p class="card-text">Your payment has been successfully received. We sincerely appreciate your timely payment and are grateful for your trust in our services. For more details, please check your account.</p>
                 <div class="table-responsive">
                     <table class="table">

@@ -47,6 +47,7 @@ class Client extends Model
         'updated_at',
         'deleted_at',
         'user_id',
+        'member_application_id',
     ];
 
     protected function serializeDate(DateTimeInterface $date)
@@ -68,7 +69,10 @@ class Client extends Model
     {
         return $this->hasMany(Payment::class);
     }
-    
+    public function memberApplication()
+    {
+        return $this->belongsTo(MemberApplication::class, 'member_application_id', 'id');
+    }
     public function transactions()
     {
         return $this->hasMany(TransactionHistory::class);

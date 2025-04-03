@@ -55,8 +55,7 @@
                         </div>
                         <a href="{{ route('forgot.password') }}" class="text-decoration-none" ><p class="pt-2 mb-0" >Forgot password</p></a>
                         <button class="btn btn-primary mt-3 w-100">Login</button>
-                    </div>
-                </div>
+                        <span class="mt-3 d-block text-center">Don’t have an account? <a href="{{ route('register') }}" class="text-decoration-none">Sign up</a></span>
             </div>
         </div>
     </form>

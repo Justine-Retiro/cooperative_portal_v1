@@ -18,10 +18,31 @@ class ProfileController extends Controller
         $user = auth()->user();
         $client = $user->clients()->first();
         $email = $user->email;
-        return view('members.profile', compact('client'));
+        $default_profile = $user->default_profile;
+        return view('members.profile', compact('client', 'default_profile'));
     }
     public function store(Request $request)
     {
+        $request->validate([
+            'last_name' => 'nullable|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'first_name' => 'nullable|string|max:255',
+            'city_address' => 'nullable|string|max:255',
+            'phone_num' => 'required|string|max:20',
+            'position' => 'nullable|string|max:255',
+            'civil_status' => 'nullable|string|max:255',
+            'spouse_name' => 'nullable|string|max:255',
+            'provincial_address' => 'nullable|string|max:255',
+            'citizenship' => 'nullable|string|max:255',
+            'birth_date' => 'nullable|date',
+            'birth_place' => 'nullable|string|max:255',
+            'taxID_num' => 'nullable|string|max:20',
+            'mailing_address' => 'nullable|string|max:255',
+            'natureOf_work' => 'nullable|string|max:255',
+            'retirementDate' => 'nullable|date',
+            'age' => 'nullable|integer',
+            'department' => 'nullable|string|max:255'
+        ]);
         try {
             $user = auth()->user();
             $client = $user->clients()->first();
@@ -38,14 +59,24 @@ class ProfileController extends Controller
             $client->provincial_address = $request->input('provincial_address', $client->provincial_address);
             $client->citizenship = $request->input('citizenship', $client->citizenship);
             $client->birth_date = $request->input('birth_date', $client->birth_date);
+            $middleName = $request->input('middle_name');
+            $user->name = $request->input('first_name') . ($middleName ? ' ' . $middleName . ' ' : ' ') . $request->input('last_name', $user->name);
             $user->birth_date = $request->input('birth_date', $user->birth_date);
             $client->birth_place = $request->input('birth_place', $client->birth_place);
             $client->tax_id_number = $request->input('taxID_num', $client->tax_id_number);
             $client->mailing_address = $request->input('mailing_address', $client->mailing_address);
             $client->nature_of_work = $request->input('natureOf_work', $client->nature_of_work);
-
+            $client->retirement_date = $request->input('retirementDate', $client->retirement_date);
+            $client->age = $request->input('age', $client->age);
+            $client->department = $request->input('department', $client->department);
+            
+            
+            
             // Save the updated client information
             $client->save();
+            $user->save();
+
+            $user->default_profile = false;
             $user->save();
             // Redirect back or to another page with a success message
             return redirect()->back()->with('success', 'Profile updated successfully.');

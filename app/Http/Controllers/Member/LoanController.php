@@ -11,6 +11,7 @@ use App\Models\Media;
 use App\Models\TransactionHistory;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
@@ -37,16 +38,19 @@ class LoanController extends Controller
         $hasPendingLoan = LoanApplication::where('client_id', $client->id)
                             ->where('application_status', 'pending')
                             ->exists();
-    
-        return view('members.loan.add', compact('client', 'hasPendingLoan'));
+        $hasUnpaidLoan = LoanApplication::where('client_id', $client->id)
+                            ->where('remarks', 'unpaid')
+                            ->exists();
+        return view('members.loan.add', compact('client', 'hasPendingLoan', 'hasUnpaidLoan'));
     }
     public function store(Request $request)
     {
         try {
             $clientID = User::find(auth()->user()->id)->clients->first()->id;
-
+            $request->validate([
+                'time_pay' => 'required|numeric|min:1|max:150',
+            ]);
             $loan_reference = "4" . mt_rand(1000000, 9999999);
-
             $application = new LoanApplication();
             $application->loan_reference = $loan_reference;
             $application->customer_name = $request->input('customer_name');
@@ -79,40 +83,35 @@ class LoanController extends Controller
             // Handle signature
             if ($request->hasFile('signature')) {
                 $signature = $request->file('signature');
-                $signatureName = time() . '_' . $signature->getClientOriginalName();
-                // Define the path to the public_html directory relative to the Laravel app
-                $targetPath = base_path('../public_html/signatures');
-            
-                // Check if the directory exists, if not, create it
-                if (!file_exists($targetPath)) {
-                    mkdir($targetPath, 0777, true);
+                if ($signature->getSize() <= 8388608 && in_array($signature->getMimeType(), ['image/jpeg', 'image/png', 'image/jpg'])) {
+                    $signatureName = time() . '_' . $signature->getClientOriginalName();
+                    $targetPath = base_path('../public_html/signatures');
+                    
+                    if (!file_exists($targetPath)) {
+                        mkdir($targetPath, 0777, true);
+                    }
+                    
+                    $signature->move($targetPath, $signatureName);
+                    $media->signature = 'signatures/' . $signatureName;
                 }
-            
-                // Move the file to the target directory
-                $signature->move($targetPath, $signatureName);
-                // Store the path in your database or model
-                $media->signature = 'signatures/' . $signatureName;
             }
-            
+                
             // Handle homepay_receipt
             if ($request->hasFile('homepay_receipt')) {
                 $receipt = $request->file('homepay_receipt');
-                $receiptName = time() . '_' . $receipt->getClientOriginalName();
-                // Define the path to the public_html directory relative to the Laravel app
-                $targetPath = base_path('../public_html/receipts');
-            
-                // Check if the directory exists, if not, create it
-                if (!file_exists($targetPath)) {
-                    mkdir($targetPath, 0777, true);
+                if ($receipt->getSize() <= 8388608 && in_array($receipt->getMimeType(), ['image/jpeg', 'image/png', 'image/jpg'])) {
+                    $receiptName = time() . '_' . $receipt->getClientOriginalName();
+                    $targetPath = base_path('../public_html/receipts');
+                    
+                    if (!file_exists($targetPath)) {
+                        mkdir($targetPath, 0777, true);
+                    }
+                    
+                    $receipt->move($targetPath, $receiptName);
+                    $media->take_home_pay = 'receipts/' . $receiptName;
                 }
-            
-                // Move the file to the target directory
-                $receipt->move($targetPath, $receiptName);
-                // Store the path in your database or model
-                $media->take_home_pay = 'receipts/' . $receiptName;
             }
 
-            // Assuming you're associating the media with the loan application
             $media->loan_id = $application->id;
             $media->save();
 
@@ -135,13 +134,23 @@ class LoanController extends Controller
             $response->general_manager = false;
             $response->save();
 
-            $user = auth()->user(); // Assuming the authenticated user is the one applying for the loan
+            $user = auth()->user();
             
             Mail::to($user->email)->send(new LoanConfirmation($user));
 
             return redirect()->route('member.loan')->with('message', 'Loan application submitted successfully.');
         } catch (\Exception $e) {
-            return back()->with('error', 'Failed to submit loan application. Please try again.');
+            return back()->withErrors(['error' => 'An error occurred while processing your request: ' . $e->getMessage()]);
         }
     }
+    public function refreshLoanTrail(){
+        $user = auth()->user();
+        $client = User::find($user->id)->clients->first();
+        $loanApplications = $client->loanApplications()
+                            ->whereIn('application_status', ['approved', 'rejected', 'pending'])
+                            ->latest()
+                            ->get();
+        return view('members.loan.partials.loan_trails', compact('loanApplications'));
+    }
+
 }

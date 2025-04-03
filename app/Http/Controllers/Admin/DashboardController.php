@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\LoanApplication;
+use App\Models\MemberApplication;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 class DashboardController extends Controller
 {
     public function index(){
@@ -18,6 +18,8 @@ class DashboardController extends Controller
         $clientsPaid = Client::where('remarks', 'paid')->count();
         $clientsNotPaid = Client::where('remarks', '!=', 'paid')->count();
         
+        $newMembershipApplicants = MemberApplication::where('status', 'pending')->count();
+
         // For users with general permission to view loan requests
         if (auth()->user()->hasPermission(1)) {
             
@@ -47,6 +49,6 @@ class DashboardController extends Controller
 
         }
         
-        return view('admin.dashboard', compact('totalClients', 'newLoanRequests', 'newLoanRequestsLast24Hours', 'pendingLoanRequests', 'clientsPaid', 'clientsNotPaid'));
+        return view('admin.dashboard', compact('totalClients', 'newLoanRequests', 'newLoanRequestsLast24Hours', 'pendingLoanRequests', 'clientsPaid', 'clientsNotPaid', 'newMembershipApplicants'));
     }
 }

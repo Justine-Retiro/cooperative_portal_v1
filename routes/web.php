@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\BackupController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\LoanProcessing;
@@ -16,6 +17,9 @@ use App\Http\Controllers\Member\ProfileController;
 use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Admin\ExportController;
+use App\Http\Controllers\Admin\PendingController;
+use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\MapsController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -29,14 +33,19 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
+Route::group(['middleware' => ['checkGuest']], function () {
+    // Login
+    Route::get('/', [LoginController::class, 'showLogin'])->name('login');
+    Route::post('login', [LoginController::class, 'login'])->name('login.user');
 
+    // Register
+    Route::get('/register', [RegisterController::class, 'showRegister'])->name('register');
+    Route::post('/register', [RegisterController::class, 'store'])->name('register.user');
 
-Route::get('/', [LoginController::class, 'showLogin' ])->name('login');
-Route::post('login', [LoginController::class, 'login'])->name('login.user');
-
-// Reset password
-Route::get('/forgot-password', [ForgotPasswordController::class, 'index'])->name('forgot.password');
-Route::post('/forgot-password', [ForgotPasswordController::class, 'validateEmail'])->name('forgot.password.post');
+    // Reset password
+    Route::get('/forgot-password', [ForgotPasswordController::class, 'index'])->name('forgot.password');
+    Route::post('/forgot-password', [ForgotPasswordController::class, 'validateEmail'])->name('forgot.password.post');
+});
 
 Route::group(['middleware' => ['resetStage']], function (){
     // Code method
@@ -69,7 +78,7 @@ Route::group(['middleware' => ['auth', 'newUser']], function () {
     // Code Based
     Route::post('/change-email/verify-email', [EmailController::class, 'verify'])->name('email.verify.code');
     // Url Based
-    Route::get('/change-email/verify-email/{code}', [EmailController::class, 'verify'])->name('email.verify.url');
+    Route::get('/change-email/verify-email/{code}', [EmailController::class, 'retrieveLinkBasedCode'])->name('email.verify.url');
 });
 
 // Route::get('/documents/{path}', 'DocumentController@show')->where('path', '.*')->middleware('auth');
@@ -82,10 +91,12 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth', 'adminUser']], funct
         // Permission 1 & 3
         // Repositories 
         Route::get('/repositories', [RepositoriesController::class, 'index'])->name('admin.repositories');
+        Route::get('/repositories/fetch-records', [RepositoriesController::class, 'filter'])->name('admin.repositories.fetchRecords');
+
         Route::get('/admin/repositories/paginate', [RepositoriesController::class, 'paginateClients'])->name('admin.paginate-clients');
 
         Route::get('/repositories/add', [RepositoriesController::class, 'add'])->name('admin.add-repo');
-        Route::get('/repositories/edit/{id}', [RepositoriesController::class, 'edit'])->name('admin.edit-repo');
+        // Route::get('/repositories/edit/{account_number}', [RepositoriesController::class, 'edit'])->name('admin.edit-repo');
         // Post HTTP Request form for new member
         Route::post('/repositories/add-repo', [RepositoriesController::class, 'store'])->name('admin.store-repo');
         // Edit HTTP Request form for editing member
@@ -93,20 +104,34 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth', 'adminUser']], funct
         // Delete HTTP Request 
         Route::delete('/repositories/delete/{id}', [RepositoriesController::class, 'edit'])->name('admin.delete-repo');
         // Repository search
-        Route::get('/repositories/search', [RepositoriesController::class, 'search'])->name('admin.search-repo');
-
+        Route::get('/repositories/search', [RepositoriesController::class, 'searchRepo'])->name('admin.search-repo');
+        // View Repo
+        Route::get('/repositories/view/{id}/{account_number}', [RepositoriesController::class, 'view'])->name('admin.view-repo');
+        // Reset Password
+        Route::put('/repositories/reset-password/{id}', [RepositoriesController::class, 'resetPassword'])->name('admin.reset-password');
+        // ________________________________________________________________________________________________________________//
         // Pending Members
-        Route::get('/repositories/pending', [RepositoriesController::class, 'pending'])->name('admin.repositories.pending');
+        Route::get('/repositories/pending', [PendingController::class, 'index'])->name('admin.repositories.pending');
+        Route::get('/repositories/pending/fetch-records', [PendingController::class, 'fetchRecords'])->name('admin.pending.fetchRecords');
+        Route::get('repositories/pending/filter/{status}', [PendingController::class, 'filter'])->name('admin.repositories.pending.filter');
+                
+        Route::get('/repositories/pending/view-applicant/{id}', [PendingController::class, 'viewApplicant'])->name('admin.view-applicant');
+        Route::get('/member-images/{path}', [PendingController::class, 'serveDecryptedImage'])->where('path', '.*')->name('member.images');
+
+        // Approve or Reject Application
+        Route::post('/repositories/pending/approve/{id}', [PendingController::class, 'approve'])->name('admin.approve');
+        Route::post('/repositories/pending/reject/{id}', [PendingController::class, 'reject'])->name('admin.reject');
 
 
+        // ________________________________________________________________________________________________________________//
 
         // Export salesforce
         Route::get('/export', [ExportController::class, 'index'])->name('admin.export');
         Route::post('/export', [ExportController::class, 'export'])->name('admin.export');
         Route::post('/export-update', [ExportController::class, 'updateRowPosition'])->name('admin.update-row-position');
         Route::post('/fetch-filtered-data', [ExportController::class, 'fetchFilteredData'])->name('admin.fetchFilteredData');
-        Route::post('/admin/fetch-filtered-data-quick-export', [ExportController::class, 'fetchFilteredDataForQuickExport'])->name('admin.fetch-filtered-data-for-quick-export');
-        
+        Route::post('/fetch-filtered-data-quick-export', [ExportController::class, 'fetchFilteredDataForQuickExport'])->name('admin.fetch-filtered-data-for-quick-export');
+        Route::post('/delete-field', [ExportController::class, 'deleteField'])->name('admin.fields.delete');
         
         // Memeber's Loan
         Route::get('/loan', [LoanProcessing::class, 'index'])->name('admin.loan.home');
@@ -130,19 +155,10 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth', 'adminUser']], funct
         Route::get('/loans/search', [LoanController::class, 'search'])->name('admin.loans.search');
         // End Member's Loan
 
-        
-
-        // Change Password
-        // Validate
-        Route::post('/profile/password', [AdminProfileController::class, 'validate_password'])->name('admin.password.validate');
-        // Resend Code
-        Route::post('/profile/password/resend', [AdminProfileController::class, 'resend_password_code'])->name('admin.password.resend');
-        // Verify Code
-        Route::post('/profile/password/verify', [AdminProfileController::class, 'verify_password_code'])->name('admin.password.verify');
-
         // Backup
         Route::get('/backup/panel', [BackupController::class, 'index'])->name('admin.backup.index');
         Route::post('/backup/panel', [BackupController::class, 'store'])->name('admin.backup.store');
+        
         Route::group(['middleware' => ['auth', 'checkBackup']], function (){
             Route::get('/backup/panel/authorized',[BackupController::class, 'authorized'])->name('admin.backup.panel');
             Route::get('/backup/panel/authorized/download', [BackupController::class, 'backup_database'])->name('admin.backup.download');
@@ -150,6 +166,11 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth', 'adminUser']], funct
         });
         // End of permission 1 & 3
     });
+    Route::group(['middleware' => ['checkGenman']], function () {
+        Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('admin.audit.index');
+        Route::get('/audit-logs/fetch-records', [AuditLogController::class, 'fetchRecords'])->name('admin.audit.fetchRecords');
+    });
+    
     
     // Profile Route
         Route::get('/profile', [AdminProfileController::class, 'index'])->name('admin.profile');
@@ -162,9 +183,7 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth', 'adminUser']], funct
         Route::post('/profile/email/resend', [AdminProfileController::class, 'resendVerificationCode'])->name('admin.resend.code');
         // Verify code
         Route::post('/profile', [AdminProfileController::class, 'verify'])->name('admin.email.verify');
-        // Profile Route End
-    
-    Route::group(['middleware' => ['check.permission:2']], function () {
+
         // Change Password
         // Validate
         Route::post('/profile/password', [AdminProfileController::class, 'validate_password'])->name('admin.password.validate');
@@ -172,15 +191,25 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth', 'adminUser']], funct
         Route::post('/profile/password/resend', [AdminProfileController::class, 'resend_password_code'])->name('admin.password.resend');
         // Verify Code
         Route::post('/profile/password/verify', [AdminProfileController::class, 'verify_password_code'])->name('admin.password.verify');
+        // Profile Route End
+    
+    Route::group(['middleware' => ['check.permission:2']], function () {
 
         // Payment
         Route::get('/payment', [PaymentController::class, 'index'])->name('admin.payment');
+        Route::get('/payment/search', [PaymentController::class, 'search'])->name('admin.payment.search');
+
         // Edit
         Route::get('/payment/edit/{user_id}', [PaymentController::class, 'edit'])->name('admin.payment.edit');
         Route::get('/payment/edit/{user_id}/{loanNo}', [PaymentController::class, 'getLoanDetails'])->name('admin.payment.getLoanDetails');
         Route::post('/payment/edit/store', [PaymentController::class, 'storePayment'])->name('admin.payment.store');
+        Route::post('/payment/edit/{user_id}/store-share', [PaymentController::class, 'storeSharePayment'])->name('admin.payment.storeshare');
+
+        // PDF
+        Route::get('/payment/statement', [PaymentController::class, 'statement'])->name('admin.payment.statement');
     });
 });
+
 
 
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
@@ -190,14 +219,19 @@ Route::group(['prefix' => 'member', 'middleware' => ['auth', 'checkUser']], func
     Route::group(['middleware' => ['auth', 'checkClient']], function () {
         Route::get('/dashboard', [MemberDashboardController::class, 'index'])->name('member.dashboard');
         Route::get('/account', [AccountController::class, 'index'])->name('member.account');
+        Route::get('/refresh-loan-payments-trail', [AccountController::class, 'refreshLoanPaymentsTrail'])->name('refreshLoanPaymentsTrail');
+        Route::get('/refresh-share-payments-trail', [AccountController::class, 'refreshSharePaymentsTrail'])->name('refreshSharePaymentsTrail');
+        Route::get('/refresh-recent-loan-trail', [AccountController::class, 'refreshRecentLoanTrail'])->name('refreshRecentLoanTrail');
 
-        // Loan Routes
-        Route::get('/loan', [LoanController::class, 'index'])->name('member.loan');
-        Route::get('/loan/apply', [LoanController::class, 'add'])->name('member.loan.apply');
-        // Store Request for loan application
-        Route::post('/loan/apply/request', [LoanController::class, 'store'])->name('member.loan.request'); 
-        // End of loan routes
-
+        Route::group(['middleware' => ['auth', 'checkCompleteProfile']], function () {
+            // Loan Routes
+            Route::get('/loan', [LoanController::class, 'index'])->name('member.loan');
+            Route::get('/loan/refresh-loan-trail', [LoanController::class, 'refreshLoanTrail'])->name('refreshLoanTrail');
+            Route::get('/loan/apply', [LoanController::class, 'add'])->name('member.loan.apply');
+            // Store Request for loan application
+            Route::post('/loan/apply/request', [LoanController::class, 'store'])->name('member.loan.request'); 
+            // End of loan routes
+        });
         // Profile Route
         Route::get('/profile', [ProfileController::class, 'index'])->name('member.profile');
         // Change Profile Details

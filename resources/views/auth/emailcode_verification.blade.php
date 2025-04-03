@@ -51,7 +51,7 @@ $(document).ready(function() {
         $('#success-message').show().text('{{ session()->get('success') }}').delay(20000).fadeOut();
     }
     var timer;
-    var countdown = 60;
+    var countdown = 350;
     startResendTimer();
 
     $('#resend_code').click(function() {
@@ -75,7 +75,7 @@ $(document).ready(function() {
     });
 
     function startResendTimer() {
-        var countdown = 60;
+        var countdown = 350;
         $('#resend_code').text('Resend in ' + countdown + 's').prop('disabled', true).css('pointer-events', 'none');
 
         timer = setInterval(function() {
